@@ -1,0 +1,16 @@
+AlgaeAir — 3D asset credits
+
+Residential Window
+Author: AleixoAlonso
+Source: https://sketchfab.com/3d-models/residential-window-ae11104237314463a61251fd46ded4b4
+License: Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/)
+The supplied GLB is used with an animated handle and sash.
+
+Cloud texture: pmndrs/drei-assets cloud.png, the texture used by Drei's Cloud component.
+https://github.com/pmndrs/drei-assets
+
+Camera/cloud choreography reference: Mohit Virli
+https://github.com/mohitvirli/mohitvirli.github.io
+
+Fonts: DM Sans and Instrument Serif, SIL Open Font License.
+License files are in /fonts/.

@@ -1,0 +1,182 @@
+[
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/assets/index-VMokuXXg.js"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/assets/index-DlDdhMG7.css"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/fonts/jizBRFtNs2ka5fXjeivQ4LroWlx-2zI.ttf"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/fonts/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAopxhTg.ttf"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/fonts/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAfJthTg.ttf"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/fonts/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwARZthTg.ttf"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/fonts/jizHRFtNs2ka5fXjeivQ4LroWlx-6zATiw.ttf"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/fonts/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAkJxhTg.ttf"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/favicon.svg"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/models/window.glb"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/textures/cloud.png"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/7b493dd5-bd00-4c29-beda-00255a700e28"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/8584d315-0547-44d4-b2ca-b73fac3d9780"
+  },
+  {
+    "type": "warning",
+    "message": "[.WebGL-0x52e4001f3e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/draco/draco_wasm_wrapper.js"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/draco/draco_decoder.wasm"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/bd3f48f2-4eeb-4dda-8406-4275da77e498"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/b83aa752-4e67-43e0-8e59-5b89245f770b"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/16520c19-ad6d-4c23-99b7-e462e598ec71"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/41ecb5c4-bc24-4d2c-a1eb-3603c4352d7b"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/987d0365-b41a-42c3-b5f2-8e8b92e54fc3"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/1d98bf66-551d-4c0e-b065-20aa1bb602a5"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/e53302c6-3b31-49b4-b6f1-b64aecc67ef7"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/151ef962-0361-4122-aac2-ab9db7558b2c"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/09df579f-0133-46f3-9771-6183997ad573"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/b274fb58-703e-43be-90a2-55ce2580e1ba"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/9a412c7f-5013-433a-8ef9-6958d6932503"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/368f8877-067a-4737-ad1a-63a280a66412"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/cce88c08-3770-4991-93b9-c41f152800bd"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/df77c623-6f22-4e17-9b49-430fd8c894b4"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/61b77aa2-4020-4680-956f-11772a11f732"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/afa1b9bd-d6c1-4419-a3b3-d1558ad1b0e4"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/fonts/jizBRFtNs2ka5fXjeivQ4LroWlx-2zI.ttf"
+  },
+  {
+    "type": "request",
+    "url": "http://127.0.0.1:5173/fonts/jizHRFtNs2ka5fXjeivQ4LroWlx-6zATiw.ttf"
+  },
+  {
+    "type": "debug",
+    "message": "unsupported GPOS table LookupType 5 format 1"
+  },
+  {
+    "type": "debug",
+    "message": "unsupported GSUB table LookupType 6 format 2"
+  },
+  {
+    "type": "debug",
+    "message": "unsupported GSUB table LookupType 6 format 1"
+  },
+  {
+    "type": "debug",
+    "message": "unsupported GPOS table LookupType 5 format 1"
+  },
+  {
+    "type": "debug",
+    "message": "unsupported GSUB table LookupType 6 format 2"
+  },
+  {
+    "type": "debug",
+    "message": "unsupported GSUB table LookupType 6 format 1"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/f5b57c0a-2530-4eac-9e7b-bb524a88c14f"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/f5b57c0a-2530-4eac-9e7b-bb524a88c14f"
+  },
+  {
+    "type": "request",
+    "url": "blob:http://127.0.0.1:5173/f5b57c0a-2530-4eac-9e7b-bb524a88c14f"
+  },
+  {
+    "type": "dom",
+    "text": "Skip to content\nalgaeair\n®\nThe idea\nThe living loop\nTry the response\nBUILT TO BREATHE\nExplore the pod\nNATURE, WITH A LITTLE INTELLIGENCE.\nA little algae.\nA better atmosphere.\n\nA new atmosphere is just a scroll away.\n\nMeet the pod\nA WINDOW TO BETTER AIR\n\nKeep going. There’s something living on the other side.\n\nINTRODUCING / ALGAEAIR AA–01\nMeet your\nliving air pod.\n\nMicroalgae at the core. Intelligence in the loop.\nA small prototype for a fresher possibility.\n\nDiscover AlgaeAir\nSee it respond\nBIOLOGY × SENSORS × CLOUD\nSCROLL TO DESCEND\n01 / ABOVE THE CLOUDS\nBIOLOGY AT THE CORE\n✳\nCLOUD IN THE LOOP\n✳\nBETTER AIR IN MIND\n✳\nSMALL BY DESIGN.\n01 / THE IDEA\nA FRESH WAY TO THINK ABOUT AIR\nWhat if better air\ncould grow?\n\nOn bad-air days, a classroom window becomes a difficult choice. Fresh air outside isn’t always fresh.\n\nAlgaeAir explores a different possibility: a compact microalgae bioreactor that responds to the environment around it. A little light, a little air, and a connected system that h"
+  }
+]
