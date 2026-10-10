@@ -10,3 +10,4 @@ playwright-report
 data/
 __pycache__/
 .pytest_cache/
+.aws-sam/

@@ -2,15 +2,17 @@ import asyncio
 import os
 import threading
 import uuid
+import json
 from contextlib import asynccontextmanager
 from datetime import date, timedelta
 from typing import Literal
 from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from . import agents
+from . import platform_store as ledger, analysis, aws_services
 from .alerts import DEFAULT_RULE, check_alerts
 from .config import CITIES, ROOT
 from .demo import seed_demo
@@ -33,12 +35,15 @@ def job(name, fn):
             return active
         task_id = str(uuid.uuid4())
         jobs[task_id] = {'id':task_id,'name':name,'status':'queued','started_at':utcnow()}
+        ledger.save_job(jobs[task_id])
     def run():
         jobs[task_id]['status']='running'
+        ledger.save_job(jobs[task_id])
         try:
             jobs[task_id].update(status='complete',result=fn(),completed_at=utcnow())
         except Exception as exc:
             jobs[task_id].update(status='failed',error=str(exc) if isinstance(exc,ValueError) else type(exc).__name__,completed_at=utcnow())
+        ledger.save_job(jobs[task_id])
     threading.Thread(target=run,daemon=True).start()
     return dict(jobs[task_id])
 
@@ -52,6 +57,8 @@ def refresh_job():
 @asynccontextmanager
 async def lifespan(app):
     init_db()
+    ledger.initialize()
+    ledger.recover()
     seed_demo()
     from .storage import provider_status
     if not os.getenv('FIRMS_MAP_KEY'):
@@ -90,6 +97,7 @@ async def validation_error(request,exc):
 @app.get('/api/health')
 def health():
     return {'status':'ok','time':utcnow(),'providers':providers(),'agents':agents.runtime_status(),
+        'platform':aws_services.status(),
         'scheduler_minutes':max(15,int(os.getenv('ATMOS_REFRESH_MINUTES','60'))),'default_mode':os.getenv('ATMOS_DEFAULT_MODE','demo')}
 
 @app.get('/api/twin')
@@ -118,6 +126,9 @@ def refresh_data():
 @app.get('/api/jobs/{task_id}')
 def get_job(task_id:str):
     if task_id not in jobs:
+        saved = ledger.get_job(task_id)
+        if saved:
+            return saved
         raise HTTPException(404,'Job not found')
     return dict(jobs[task_id])
 
@@ -234,6 +245,86 @@ def alert_rule(body:AlertRule):
 @app.post('/api/alerts/check')
 def evaluate_alerts(body:Backtest):
     return check_alerts(snapshot(body.mode,persist=True),send=False)
+
+class AnalysisRequest(Scenario):
+    session_id:str|None=Field(None,pattern=r'^[a-zA-Z0-9_-]{1,80}$')
+    message:str=Field('Analyze this city and scenario',max_length=2000)
+    audience:Literal['principal','parent','official']='principal'
+
+@app.post('/api/analysis')
+def start_analysis(body:AnalysisRequest):
+    return analysis.start(body.model_dump())
+
+@app.get('/api/runs')
+def runs(session_id:str|None=None):
+    return {'runs':ledger.list_runs(session_id)}
+
+@app.get('/api/runs/{run_id}')
+def run_detail(run_id:str):
+    return ledger.get_run(run_id)
+
+@app.get('/api/runs/{run_id}/events')
+async def run_stream(run_id:str,request:Request,after:int=Query(0,ge=0)):
+    ledger.get_run(run_id)
+    async def stream():
+        cursor = after
+        while not await request.is_disconnected():
+            batch = await asyncio.to_thread(ledger.events,run_id,cursor)
+            for event in batch:
+                cursor = event['sequence']
+                yield f"id: {cursor}\ndata: {json.dumps(event)}\n\n"
+            current = await asyncio.to_thread(ledger.get_run,run_id)
+            if current['status'] in ('complete','failed','interrupted'):
+                break
+            if not batch:
+                yield ': keepalive\n\n'
+            await asyncio.sleep(.7)
+    return StreamingResponse(stream(),media_type='text/event-stream',headers={'Cache-Control':'no-cache','X-Accel-Buffering':'no'})
+
+@app.get('/api/artifacts')
+def artifact_list(mode:Mode='demo'):
+    return {'artifacts':ledger.artifacts(mode)}
+
+@app.get('/api/artifacts/{artifact_id}')
+def artifact_detail(artifact_id:str):
+    return ledger.artifact(artifact_id)
+
+@app.get('/api/evidence/search')
+def evidence_search(q:str=Query(min_length=1,max_length=500),mode:Mode='demo',city_id:City|None=None):
+    return aws_services.retrieve(q,mode,city_id)
+
+@app.get('/api/actions')
+def action_list(mode:Mode='demo'):
+    return {'actions':ledger.list_actions(mode)}
+
+class ActionStatus(BaseModel):
+    status:Literal['proposed','accepted','in_progress','done','dismissed']
+
+@app.patch('/api/actions/{action_id}')
+def update_action(action_id:str,body:ActionStatus):
+    ledger.change_action(action_id,body.status)
+    return {'id':action_id,'status':body.status}
+
+@app.get('/api/audit')
+def audit_log():
+    with ledger.connect() as db:
+        return {'entries':[dict(row,detail=json.loads(row['detail'])) for row in db.execute('SELECT * FROM audit ORDER BY sequence DESC LIMIT 100')]}
+
+@app.post('/api/aws/bootstrap')
+def local_aws_bootstrap():
+    return aws_services.bootstrap()
+
+@app.get('/api/aws/check')
+def check_aws_connection():
+    return aws_services.connection_check()
+
+@app.post('/api/aws/queue/process')
+def process_queue():
+    return job('sqs-analysis',aws_services.consume_one)
+
+@app.post('/api/search/index')
+def search_index():
+    return job('opensearch-index',aws_services.index_evidence)
 
 if (ROOT/'dist').exists():
     app.mount('/',StaticFiles(directory=ROOT/'dist',html=True),name='frontend')

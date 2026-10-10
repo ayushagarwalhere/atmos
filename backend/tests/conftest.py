@@ -12,6 +12,8 @@ def isolated_storage(tmp_path_factory):
     forecast.DATA_DIR = directory
     config.DATA_DIR = directory
     storage.init_db()
+    from backend import platform_store
+    platform_store.initialize()
     from backend.demo import seed_demo
     seed_demo()
     return directory

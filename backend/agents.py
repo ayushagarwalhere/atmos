@@ -19,7 +19,10 @@ def model_instance():
         from strands.models.ollama import OllamaModel
         return OllamaModel(host=os.getenv('OLLAMA_HOST','http://localhost:11434'),model_id=os.getenv('OLLAMA_MODEL','llama3.1'))
     from strands.models import BedrockModel
-    return BedrockModel(model_id=os.getenv('BEDROCK_MODEL_ID','us.anthropic.claude-3-5-haiku-20241022-v1:0'),region_name=os.getenv('AWS_REGION','us-east-1'))
+    from botocore.config import Config
+    from .aws_services import aws_session
+    return BedrockModel(model_id=os.getenv('BEDROCK_MODEL_ID','us.anthropic.claude-3-5-haiku-20241022-v1:0'),boto_session=aws_session(),
+        boto_client_config=Config(connect_timeout=5,read_timeout=35,retries={'max_attempts':1}),max_tokens=512)
 
 def chat(message, city_id, mode, audience='principal', horizon=6, scenario=None):
     parameters = dict(scenario or {})

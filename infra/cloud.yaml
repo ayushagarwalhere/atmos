@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Atmos optional profile-backed AWS resources; review before deploying
+Parameters:
+  EvidenceBucketName:
+    Type: String
+    Description: Globally unique private S3 bucket name for this project
+  ResourcePrefix:
+    Type: String
+    Default: atmos-hack
+    AllowedPattern: '[a-zA-Z0-9-]{3,40}'
+Resources:
+  EvidenceBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref EvidenceBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireHackathonEvidence
+            Status: Enabled
+            ExpirationInDays: 30
+  RunTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ResourcePrefix}-runs'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+  AnalysisDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ResourcePrefix}-analysis-dlq'
+      MessageRetentionPeriod: 86400
+      SqsManagedSseEnabled: true
+  AnalysisQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ResourcePrefix}-analysis'
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 86400
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt AnalysisDeadLetterQueue.Arn
+        maxReceiveCount: 3
+Outputs:
+  EvidenceBucket:
+    Value: !Ref EvidenceBucket
+  RunTable:
+    Value: !Ref RunTable
+  AnalysisQueueName:
+    Value: !GetAtt AnalysisQueue.QueueName
+  AnalysisQueueUrl:
+    Value: !Ref AnalysisQueue
+  AnalysisQueueArn:
+    Value: !GetAtt AnalysisQueue.Arn

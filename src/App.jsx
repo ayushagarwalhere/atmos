@@ -13,6 +13,7 @@ import SiteStars from './components/theme/SiteStars';
 import { useThemeStore } from './stores/themeStore';
 import './twin.css';
 import './twin-experience.css';
+import './mission.css';
 gsap.registerPlugin(ScrollTrigger);
 const CHAPTERS=[['01','Smoke twin','twin'],['02','Scenarios','scenarios'],['03','How it works','approach']];
 function Brand({footer=false}) {return <a href="#home" className={'brand '+(footer?'brand-footer':'')} aria-label="Atmos home"><span className="brand-icon"><Leaf size={23} strokeWidth={1.5}/></span>atmos<span className="brand-registered">®</span></a>;}
