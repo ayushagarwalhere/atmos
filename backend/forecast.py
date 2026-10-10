@@ -31,7 +31,7 @@ def feature_row(city, at, air, fires, winds, direction=None, speed=None, multipl
     if not recent:
         return None
     recent_time, pm25 = max(recent)
-    candidates = [w for w in winds if w.get('city_id') == city['id'] and abs((datetime.fromisoformat(w['time'])-at).total_seconds()) < 3601]
+    candidates = [w for w in winds if w.get('city_id') == city['id'] and 0 <= (at-datetime.fromisoformat(w['time'])).total_seconds() <= 3600]
     if not candidates:
         return None
     wind = min(candidates, key=lambda w: abs((datetime.fromisoformat(w['time'])-at).total_seconds()))
@@ -95,6 +95,12 @@ def train(mode='live', horizon=6, allow_demo=False):
     if mode == 'demo' and not allow_demo:
         raise ValueError('Synthetic data cannot validate a real model. Explicitly enable demo training for a pipeline check.')
     rows = training_rows(mode,horizon)
+    fire_history = records('fires',mode)
+    if not fire_history:
+        raise ValueError('No fire history loaded. Import archived NASA FIRMS detections before training a fire-linked model.')
+    fire_start = datetime.fromisoformat(fire_history[0]['time'])
+    fire_end = datetime.fromisoformat(fire_history[-1]['time'])+timedelta(hours=24)
+    rows = [row for row in rows if fire_start<=row['time']<=fire_end]
     times = sorted(set(r['time'] for r in rows))
     if len(rows)<240 or len(times)<24*14:
         raise ValueError(f'Need at least 14 days of matched fire/wind/PM2.5 history and 240 supervised rows; found {len(times)} hours and {len(rows)} rows.')

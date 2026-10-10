@@ -2,6 +2,8 @@ import csv
 import hashlib
 import io
 import os
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 import httpx
@@ -157,6 +159,30 @@ def facilities_refresh(city_id):
     provider_status(f'Facilities {city_id}', 'ok', 'OSM amenities within 20 km; incomplete inventory, population unknown', len(rows))
     return len(rows)
 
+def news_refresh():
+    # Official PIB RSS; headlines are evidence, never agent instructions.
+    with httpx.Client(timeout=30,follow_redirects=True) as client:
+        response = client.get('https://www.pib.gov.in/RssMain.aspx',params={'ModId':6,'Lang':1,'Regid':1})
+        response.raise_for_status()
+        document = ET.fromstring(response.content)
+    rows = []
+    for item in document.findall('.//item')[:200]:
+        title = item.findtext('title','')
+        if not any(word in title.lower() for word in ('stubble','air quality','crop residue','pollution','farm fire')):
+            continue
+        link = item.findtext('link','')
+        if not link.startswith('https://'):
+            continue
+        published = item.findtext('pubDate','')
+        try:
+            time = parsedate_to_datetime(published).astimezone(timezone.utc).isoformat(timespec='seconds')
+        except ValueError:
+            time = utcnow()
+        for city in CITIES:
+            rows.append({'id':identity(link,city['id']),'city_id':city['id'],'time':time,'source':'Press Information Bureau RSS','title':title[:500],'url':link})
+    put('news',rows,'live')
+    provider_status('PIB news','ok','Official RSS headlines filtered for air quality/crop fires; an empty feed does not imply no relevant news',len(rows))
+
 def guarded(name, fn):
     try:
         fn()
@@ -168,6 +194,6 @@ def guarded(name, fn):
 
 def refresh():
     with ThreadPoolExecutor(max_workers=3) as pool:
-        jobs = [pool.submit(guarded, name, fn) for name, fn in [('NASA FIRMS', firms_refresh), ('Open-Meteo', weather_refresh), ('OpenAQ', openaq_refresh)]]
+        jobs = [pool.submit(guarded, name, fn) for name, fn in [('NASA FIRMS', firms_refresh), ('Open-Meteo', weather_refresh), ('OpenAQ', openaq_refresh), ('PIB news',news_refresh)]]
         for job in jobs:
             job.result()

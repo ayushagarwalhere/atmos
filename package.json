@@ -8,6 +8,7 @@
     "dev:full": "node scripts/run.mjs full",
     "api": "node scripts/run.mjs api",
     "test:backend": "node scripts/run.mjs test",
+    "verify": "node scripts/verify.mjs",
     "build": "vite build --configLoader native",
     "preview": "vite preview --configLoader native --host 127.0.0.1",
     "test": "playwright test",
