@@ -17,7 +17,7 @@ test('smog sequence, recovery, city selection and manifest export', async ({ pag
   const downloadPromise=page.waitForEvent('download');
   await page.getByRole('button',{name:'Export manifest'}).click();
   const download=await downloadPromise;
-  expect(download.suggestedFilename()).toBe('algaeair-demo-manifest.json');
+  expect(download.suggestedFilename()).toBe('atmos-demo-manifest.json');
   const fs=await import('node:fs/promises');
   const manifest=JSON.parse(await fs.readFile(await download.path(),'utf8'));
   expect(manifest.dataSource).toBe('local-simulation');expect(manifest.awsConnected).toBe(false);expect(manifest.pumpPercent).toBe(100);expect(manifest.carbonReduction).toBe(null);

@@ -11,7 +11,7 @@ useGLTF.setDecoderPath('/draco/');
 class SceneBoundary extends Component {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error) { console.error('AlgaeAir scene:', error); this.props.onReady?.(); }
+  componentDidCatch(error) { console.error('Atmos scene:', error); this.props.onReady?.(); }
   render() { return this.state.failed ? <div className="scene-fallback"><div className="fallback-pod"><span /><i /><b /></div></div> : this.props.children; }
 }
 

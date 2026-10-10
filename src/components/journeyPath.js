@@ -1,7 +1,7 @@
 export const clamp01 = value => Math.max(0, Math.min(1, value));
 export const range = (progress, start, length) => clamp01((progress - start) / length);
 export const smoothRange = (progress, start, length) => { const t = range(progress, start, length); return t * t * (3 - 2 * t); };
-// Mohit Virli's downward camera journey, followed by an AlgaeAir reveal.
+// Mohit Virli's downward camera journey, followed by an Atmos reveal.
 export function sampleJourney(progress) {
   const p = clamp01(progress);
   const emergence = smoothRange(p, 0.68, 0.17);

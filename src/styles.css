@@ -21,7 +21,7 @@ html:has(.motion-switch.off) .loop-graphic i{animation:none}
 @media(max-width:760px){.hero{min-height:1080px}.hero-scene{inset:550px -4% 65px 0%;mask-image:none}.cloud-left{bottom:-10%}.cloud-right{bottom:-10%}}
 @media(max-width:380px){.hero{min-height:1020px}.hero-scene{top:520px}}
 
-/* Continuous sky -> clouds -> hinged window -> AlgaeAir journey. */
+/* Continuous sky -> clouds -> hinged window -> Atmos journey. */
 .opening-journey{height:500svh;position:relative;background:var(--platinum)}
 .opening-viewport{height:100svh;position:sticky;top:0;overflow:hidden;isolation:isolate;--journey-progress:0;--entry-opacity:1;--pod-opacity:0;--pod-offset:30px;--window-opacity:0;--window-scale:.5;--sash-angle:0deg}
 .prototype-anchor{position:absolute;top:calc(86% - 86svh);width:1px;height:1px;scroll-margin-top:0}

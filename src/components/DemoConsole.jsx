@@ -27,9 +27,9 @@ export default function DemoConsole({reduced}) {
   }
   function recover() {clearTimers();setRunning(false);setStep(-1);setMode('recovery');setAqi(ZONES[zone].aqi);setDeviceAqi(ZONES[zone].aqi);log('Sample ambient reading returned to baseline. Pod set to energy-saving mode.');}
   function exportManifest() {
-    const manifest={project:'AlgaeAir',dataSource:'local-simulation',timestamp:new Date().toISOString(),classroom:'4B',zone,aqi,pumpPercent:pump,lightPercent:light,carbonReduction:null,carbonReductionStatus:'not-measured',awsConnected:false,events};
+    const manifest={project:'Atmos',dataSource:'local-simulation',timestamp:new Date().toISOString(),classroom:'4B',zone,aqi,pumpPercent:pump,lightPercent:light,carbonReduction:null,carbonReductionStatus:'not-measured',awsConnected:false,events};
     const url=URL.createObjectURL(new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'}));
-    const a=document.createElement('a');a.href=url;a.download='algaeair-demo-manifest.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const a=document.createElement('a');a.href=url;a.download='atmos-demo-manifest.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   return <div className="demo-console">
     <div className="console-top"><span><i className="status-dot"/> Control room</span><span className="simulation-label">Simulation</span></div>

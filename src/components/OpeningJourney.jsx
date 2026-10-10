@@ -5,7 +5,6 @@ import { Text } from '@react-three/drei/core/Text.js';
 import { useGLTF } from '@react-three/drei/core/Gltf.js';
 import { ArrowDown, ArrowRight, ArrowUpRight } from 'lucide-react';
 import * as THREE from 'three';
-import { Pod } from './Atmosphere';
 import gsap from 'gsap';
 import { useThemeStore } from '../stores/themeStore';
 import StarsContainer from './theme/Stars';
@@ -13,7 +12,7 @@ import { clamp01, range, smoothRange, sampleJourney, journeyPhase } from './jour
 
 const FONT = '/fonts/jizBRFtNs2ka5fXjeivQ4LroWlx-2zI.ttf';
 const ITALIC_FONT = '/fonts/jizHRFtNs2ka5fXjeivQ4LroWlx-6zATiw.ttf';
-const PHASE_LABELS = {sky:'01 / ABOVE THE CLOUDS',clouds:'02 / INTO THE ATMOSPHERE',window:'03 / A WINDOW TO BETTER AIR',emerge:'04 / THROUGH TO THE OTHER SIDE',pod:'05 / MEET ALGAEAIR'};
+const PHASE_LABELS = {sky:'01 / UPWIND SIGNALS',clouds:'02 / THROUGH THE ATMOSPHERE',window:'03 / WIND SETS THE PATH',emerge:'04 / DOWNWIND CITIES',pod:'05 / THE SMOKE TWIN'};
 
 function supportsWebGL() {
   try {
@@ -34,7 +33,7 @@ class JourneyBoundary extends Component {
 
 function ScrollCamera({signal,frameRequest,reduced,viewport,modelReady}) {
   const progress=useRef(0);
-  const pod=useRef();
+  const twin=useRef();
   const {invalidate,size}=useThree();
   useEffect(()=>{frameRequest.current=invalidate;return()=>{frameRequest.current=null;};},[frameRequest,invalidate]);
   useFrame((state,delta)=>{
@@ -44,7 +43,7 @@ function ScrollCamera({signal,frameRequest,reduced,viewport,modelReady}) {
     state.camera.position.set(path.x,path.y,path.z);
     state.camera.rotation.set(path.pitch,reduced?0:-state.pointer.x*Math.PI/90,0,'YXZ');
     state.camera.updateMatrixWorld();
-    if(pod.current)pod.current.visible=path.podVisible;
+    if(twin.current)twin.current.visible=path.podVisible;
     if(viewport.current){
       viewport.current.style.setProperty('--entry-opacity',1-smoothRange(p,0.05,0.15));
       viewport.current.style.setProperty('--pod-opacity',smoothRange(p,0.8,0.06));
@@ -54,7 +53,14 @@ function ScrollCamera({signal,frameRequest,reduced,viewport,modelReady}) {
       viewport.current.dataset.cameraPitch=path.pitch.toFixed(3);
     }
   },-1);
-  return <group ref={pod} visible={false} position={[size.width<760?0:2.35,size.width<760?-33.1:-31.35,0]} scale={size.width<760?0.7:1.25}><Pod reduced={reduced}/></group>;
+  return <group ref={twin} visible={false} position={[size.width<760?0:2.35,size.width<760?-33.1:-31.35,0]}>
+    <pointLight position={[0,0,1]} color="#ffb36b" intensity={2.2} distance={8}/>
+    <mesh><sphereGeometry args={[0.48,32,32]}/><meshStandardMaterial color="#e78443" emissive="#913a1e" emissiveIntensity={1.2}/></mesh>
+    <mesh rotation={[Math.PI/2,0,0]} scale={[1.6,1.6,1]}><torusGeometry args={[0.8,0.014,8,80]}/><meshBasicMaterial color="#fff1d5" transparent opacity={0.7}/></mesh>
+    {[[1.35,.5,0],[-1.15,.35,0],[.2,-1.25,0]].map((point,index)=><group key={index} position={point}><mesh><sphereGeometry args={[0.2,20,20]}/><meshStandardMaterial color="#d9edf1" emissive="#7aa6b0" emissiveIntensity={0.5}/></mesh></group>)}
+    <mesh position={[.62,.25,0]}><cylinderGeometry args={[0.012,0.012,1.28,8]}/><meshBasicMaterial color="#c4d8e5" transparent opacity={0.7}/></mesh>
+    <mesh position={[-.48,-.28,0]} rotation={[0,0,-.4]}><cylinderGeometry args={[0.012,0.012,1.2,8]}/><meshBasicMaterial color="#c4d8e5" transparent opacity={0.7}/></mesh>
+  </group>;
 }
 
 function JourneyClouds({reduced}) {
@@ -108,8 +114,8 @@ function SkyTitle() {
   const {size}=useThree();
   const fontSize=size.width<760?0.54:1.1;
   return <group position={[0,2,-10]}>
-    <Text font={FONT} fontSize={fontSize} color="#ffffff" anchorX="center" anchorY="middle" position={[0,0.6,0]} characters="A little algae.">A little algae.</Text>
-    <Text font={ITALIC_FONT} fontSize={fontSize} color="#ffffff" anchorX="center" anchorY="middle" position={[0,-0.7,0]} characters="A better atmosphere.">A better atmosphere.</Text>
+    <Text font={FONT} fontSize={fontSize} color="#ffffff" anchorX="center" anchorY="middle" position={[0,0.6,0]} characters="Smoke travels.">Smoke travels.</Text>
+    <Text font={ITALIC_FONT} fontSize={fontSize} color="#ffffff" anchorX="center" anchorY="middle" position={[0,-0.7,0]} characters="Know what arrives.">Know what arrives.</Text>
   </group>;
 }
 
@@ -131,7 +137,7 @@ function FlatJourney({signal}) {
   return <div className="flat-journey" aria-hidden="true">
     <div className="flat-cloud flat-cloud-one"/><div className="flat-cloud flat-cloud-two"/><div className="flat-cloud flat-cloud-three"/>
     <div className="flat-window"><div className="flat-sash"><span/></div></div>
-    <div className="flat-pod"><div className="fallback-pod"><span/></div></div>
+    <div className="flat-pod"><div className="fallback-twin"><i/><i/><i/><i/></div></div>
   </div>;
 }
 
@@ -181,26 +187,26 @@ export default function OpeningJourney({reduced,onReady}) {
     return()=>animation.kill();
   },[backgroundColor,reduced]);
   const fallback=<FlatJourney signal={signal}/>;
-  return <section id="home" ref={track} className="opening-journey" aria-label="Cloud-to-window scroll journey">
+  return <section id="home" ref={track} className="opening-journey" aria-label="A journey from regional fires through smoke transport to downwind cities">
     <div id="prototype" className="prototype-anchor"/>
     <div ref={viewport} className={'opening-viewport '+(!available?'no-webgl':'')} data-phase={phase} data-theme={themeType}>
-      <div ref={backgroundRef} className="journey-canvas" role="img" aria-label="Scroll through floating clouds, pass through an opening window, and emerge beside the AlgaeAir bioreactor">
+      <div ref={backgroundRef} className="journey-canvas" role="img" aria-label="Scroll through the atmosphere from fire signals toward downwind cities">
         <JourneyBoundary fallback={fallback} onReady={onReady}>
           {available?<Canvas dpr={[1,1.5]} camera={{position:[0,0,5],fov:40,near:0.01,far:1000}} gl={{alpha:true,antialias:true}} frameloop={reduced||!visible?'demand':'always'}><Suspense fallback={null}><Scene signal={signal} frameRequest={frameRequest} reduced={reduced} viewport={viewport} onReady={onReady}/></Suspense></Canvas>:fallback}
         </JourneyBoundary>
       </div>
       <div className="journey-entry">
         
-        <h1 className={available?'journey-accessible-title':'journey-flat-title'}>A little algae.<br/>A better atmosphere.</h1>
+        <h1 className={available?'journey-accessible-title':'journey-flat-title'}>Smoke travels.<br/>Know what arrives.</h1>
         
       </div>
-      <a className="journey-skip" href="#prototype">Meet the pod <ArrowDown size={13}/></a>
+      <a className="journey-skip" href="#prototype">Explore the twin <ArrowDown size={13}/></a>
       
       <div className="journey-product" inert={phase!=='pod'?true:undefined}>
         
-        <h2>Meet your<br/><em>living air pod.</em></h2>
-        <p>Microalgae. Adaptive light. Connected controls.</p>
-        <div className="hero-buttons"><a href="#idea" className="button button-dark">Discover AlgaeAir <ArrowUpRight size={18}/></a><a href="#demo" className="hero-secondary">See it respond <span><ArrowRight size={17}/></span></a></div>
+        <h2>Smoke travels.<br/><em>Know what arrives.</em></h2>
+        <p>Fire signals. Wind transport. Downwind city outlooks.</p>
+        <div className="hero-buttons"><a href="#idea" className="button button-dark">Discover Atmos <ArrowUpRight size={18}/></a><a href="#twin" className="hero-secondary">Open the twin <span><ArrowRight size={17}/></span></a></div>
         
       </div>
       <div className="journey-footer"><span className="journey-scroll"><ArrowDown size={14}/> {phase==='pod'?'Explore below':'Scroll to explore'}</span><div className="journey-progress" aria-hidden="true"><span/></div></div>
