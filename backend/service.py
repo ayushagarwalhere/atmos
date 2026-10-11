@@ -9,6 +9,7 @@ from .providers import identity, normalize_fires, timestamp
 from .storage import records, put, providers, setting, utcnow
 from .transport import cluster_fires, transport_links, distance
 from .weather import WEATHER_FIELDS, current_weather, interpret_weather
+from .simulation import demo_response
 
 def at_time(raw=None):
     return datetime.fromisoformat(timestamp(raw)) if raw else datetime.now(timezone.utc).replace(minute=0,second=0,microsecond=0)
@@ -43,6 +44,8 @@ def snapshot(mode='live', at=None, horizon=6, direction=None, speed=None, multip
         changed = direction is not None or speed is not None or multiplier != 1 or smoke_factor != 1 or any(value is not None for value in weather.values())
         baseline = predict_city(city,moment,mode,horizon,context=(air,fires,winds)) if changed else prediction
         meteo = current_weather(city['id'],moment,winds,dict(weather,direction=direction,speed=speed))
+        if mode == 'demo' and changed:
+            prediction = demo_response(baseline, prediction, meteo, horizon)
         incoming = [edge for edge in links if edge['city_id']==city['id'] and edge['arrives']]
         samples = [value for (name,time),value in air.items() if name==city['id'] and moment-timedelta(hours=24)<time<=moment]
         recent = [(time,value) for (name,time),value in air.items() if name==city['id'] and time<=moment]
@@ -76,7 +79,7 @@ def impact(snapshot_data, city_id):
     edges = [edge for edge in snapshot_data['edges'] if edge['city_id']==city_id and edge['arrives']]
     affected = []
     for facility in facilities:
-        matched = any(any(point['hours']<=24 and distance(point,facility)<=15+3*point['hours'] for point in edge['path']) for edge in edges)
+        matched = any(any(0 < point['hours'] <= snapshot_data['horizon'] and distance(point,facility)<=15+3*point['hours'] for point in edge['path']) for edge in edges)
         if matched:
             affected.append(facility)
     supplied_population = [f['population'] for f in affected if f.get('population') is not None]
@@ -84,7 +87,7 @@ def impact(snapshot_data, city_id):
         'districts':sum(f['kind']=='district' for f in affected), 'population':sum(supplied_population) if supplied_population else None,
         'inventory_count':len(facilities),'potentially_affected_count':len(affected),'facilities':affected[:100],
         'forecast':city['forecast'],'coverage':'Synthetic example inventory' if snapshot_data['mode']=='demo' else ('OSM/imported inventory; incomplete' if facilities else 'No inventory loaded. Fetch OSM or import facilities.'),
-        'method':'Facility/district centre intersects a rough 24h drift corridor. Counts indicate potential exposure, not measured population exposure.'}
+        'method':f"Facility/district centre intersects a rough {snapshot_data['horizon']}h drift corridor. Counts indicate potential exposure, not measured population exposure."}
 
 def advisory(city, audience, mode):
     prefix = 'Synthetic demonstration. ' if mode=='demo' else ''

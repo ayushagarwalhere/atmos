@@ -75,6 +75,7 @@ fi
 switched=true
 sudo -n docker run -d --name atmos --restart unless-stopped \
   --env-file "$env_file" -p 127.0.0.1:8000:8000 \
+  -e ATMOS_HOSTING=ec2 -e ATMOS_HOSTING_REGION="${ATMOS_HOSTING_REGION:-eu-north-1}" \
   -v atmos-data:/app/data "$image" >/dev/null
 if ! wait_for_health http://127.0.0.1:8000/api/health; then
   sudo -n docker logs --tail 60 atmos >&2

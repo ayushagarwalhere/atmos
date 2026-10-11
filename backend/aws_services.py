@@ -1,12 +1,20 @@
 """Profile-backed AWS SDK adapters with an optional local emulator mode."""
 import json
 import os
+import time
+import threading
 from urllib.parse import urlparse
 import boto3
 import httpx
 from botocore.config import Config
 from . import platform_store as ledger
 from . import cloud_budget
+from .storage import setting, set_setting, utcnow
+
+_queue_lock = threading.Lock()
+
+def writes_enabled():
+    return service_mode() == 'local' or os.getenv('ATMOS_AWS_ALLOW_WRITES', 'false').lower() == 'true'
 
 def service_mode():
     return os.getenv('ATMOS_AWS_MODE','local' if os.getenv('ATMOS_AWS_ENDPOINT') else 'disabled')
@@ -88,11 +96,38 @@ def publish(run_id,artifact_id):
         raise ValueError('Evidence object exceeds the 2 MB cloud upload limit')
     resources = names()
     client('s3').put_object(Bucket=resources['bucket'],Key=f"{run['mode']}/{artifact_id}.json",Body=raw,ContentType='application/json')
-    client('dynamodb').put_item(TableName=resources['table'],Item={'id':{'S':run_id},'mode':{'S':run['mode']},'city_id':{'S':run['city_id']},'status':{'S':run['status']},'artifact_id':{'S':artifact_id},'updated_at':{'S':run['updated_at']}})
+    client('dynamodb').put_item(TableName=resources['table'],Item={'id':{'S':run_id},'mode':{'S':run['mode']},'city_id':{'S':run['city_id']},'status':{'S':run['status']},'artifact_id':{'S':artifact_id},'updated_at':{'S':run['updated_at']},'expires_at':{'N':str(int(time.time())+30*86400)}})
     with ledger.connect() as db:
         db.execute('UPDATE artifacts SET delivery=? WHERE id=?',('S3 AWS' if service_mode()=='aws' else 'S3 local emulator',artifact_id))
     ledger.audit('aws.publish',artifact_id,{'bucket':resources['bucket'],'mode':service_mode()})
     return {'bucket':resources['bucket'],'key':f"{run['mode']}/{artifact_id}.json",'emulated':service_mode()!='aws'}
+
+def publish_simulation(result):
+    require_writes()
+    resources = names()
+    key = f"simulations/{result['mode']}/{result['id']}.json"
+    raw = json.dumps(result, allow_nan=False).encode()
+    if len(raw) > 2000000:
+        raise ValueError('Simulation report exceeds the 2 MB cloud upload limit')
+    client('s3').put_object(Bucket=resources['bucket'], Key=key, Body=raw, ContentType='application/json')
+    client('dynamodb').put_item(TableName=resources['table'], Item={
+        'id': {'S': result['id']}, 'kind': {'S': 'simulation'}, 'name': {'S': result['name']},
+        'mode': {'S': result['mode']}, 'city_id': {'S': result['city_id']}, 'status': {'S': 'complete'},
+        'artifact_key': {'S': key}, 'updated_at': {'S': result['created_at']},
+        'expires_at': {'N': str(int(time.time()) + 30 * 86400)}})
+    record_metric('SimulationCompleted', 1, 'Count')
+    return {'status': 'published', 'bucket': resources['bucket'], 'key': key,
+            'services': ['S3', 'DynamoDB'], 'emulated': service_mode() != 'aws'}
+
+def record_metric(name, value, unit='Count'):
+    if service_mode() != 'aws' or os.getenv('ATMOS_CLOUDWATCH_ENABLED', 'false').lower() != 'true':
+        return
+    try:
+        client('cloudwatch').put_metric_data(Namespace='Atmos/SmokeTwin',
+            MetricData=[{'MetricName': name, 'Value': value, 'Unit': unit}])
+    except Exception:
+        # Metrics are optional; evidence storage and local work remain available.
+        pass
 
 def enqueue(run_id):
     require_writes()
@@ -114,6 +149,13 @@ def consume_one():
     execute(run_id) # atomic ledger claim prevents duplicate SDK execution
     sqs.delete_message(QueueUrl=queue,ReceiptHandle=item['ReceiptHandle'])
     return {'processed':True,'run_id':run_id}
+
+def drain_pending():
+    # A bounded worker wakes only when an analysis is enqueued: no endless idle polling.
+    with _queue_lock:
+        for _ in range(10):
+            if not consume_one()['processed']:
+                break
 
 def search_url():
     value = os.getenv('ATMOS_OPENSEARCH_URL','')
@@ -159,7 +201,28 @@ def status():
         'aws_configured':configured(),'writes_enabled':os.getenv('ATMOS_AWS_ALLOW_WRITES','false').lower()=='true',
         'local_aws_configured':bool(os.getenv('ATMOS_AWS_ENDPOINT')),'opensearch_configured':bool(os.getenv('ATMOS_OPENSEARCH_URL')),
         'queue_enabled':os.getenv('ATMOS_ANALYSIS_QUEUE','local')=='sqs','cloud_deployed':False,
-        'services':['S3 evidence artifacts','DynamoDB run metadata','SQS analysis queue'],'note':'AWS mode uses the selected profile; local mode uses an emulator. Configured does not mean connected.'}
+        'services':['S3 evidence artifacts','DynamoDB run metadata','SQS analysis queue','CloudWatch application metrics'],
+        'inventory': service_inventory(),
+        'note':'Configured services are not marked connected until a successful connection check. Strands is an SDK, not a hosted AWS service.'}
+
+def service_inventory():
+    hosted = os.getenv('ATMOS_HOSTING') == 'ec2'
+    checks = setting('aws_connection_check', {})
+    def state(name, enabled=True):
+        if not configured() or not enabled:
+            return 'not_configured'
+        return 'connected' if checks.get('checks', {}).get(name, {}).get('status') == 'connected' else 'configured'
+    return [
+        {'name': 'Amazon EC2', 'status': 'active' if hosted else 'local', 'purpose': 'Runs FastAPI, React and the simulation worker.', 'kind': 'AWS service'},
+        {'name': 'Amazon EBS', 'status': 'active' if hosted else 'local', 'purpose': 'Persistent SQLite data, saved runs and models on the EC2 volume.', 'kind': 'AWS service'},
+        {'name': 'AWS Strands Agents SDK', 'status': 'integrated', 'purpose': 'Orchestrates the five analysis specialists.', 'kind': 'Open source SDK'},
+        {'name': 'Amazon S3', 'status': state('S3'), 'purpose': 'Private JSON evidence and simulation reports.', 'kind': 'AWS service'},
+        {'name': 'Amazon DynamoDB', 'status': state('DynamoDB'), 'purpose': 'Run metadata and report pointers; 30-day TTL.', 'kind': 'AWS service'},
+        {'name': 'Amazon SQS', 'status': state('SQS', os.getenv('ATMOS_ANALYSIS_QUEUE') == 'sqs'), 'purpose': 'Queued specialist analysis with a bounded worker and dead-letter queue.', 'kind': 'AWS service'},
+        {'name': 'Amazon CloudWatch', 'status': state('CloudWatch', os.getenv('ATMOS_CLOUDWATCH_ENABLED') == 'true'), 'purpose': 'Simulation completion and analysis duration metrics.', 'kind': 'AWS service'},
+        {'name': 'AWS CloudFormation', 'status': 'provisioned' if os.getenv('ATMOS_CLOUDFORMATION_STACK') else 'template_ready', 'purpose': 'Provisions the private storage, queues, logs and EC2 application role.', 'kind': 'AWS service'},
+        {'name': 'Amazon Bedrock', 'status': 'configured' if os.getenv('ATMOS_AGENT_PROVIDER') == 'bedrock' else 'not_enabled', 'purpose': 'Optional paid language-model reasoning; current analysis uses a local rule router.', 'kind': 'AWS service'},
+    ]
 
 def connection_check():
     resources = names()
@@ -171,4 +234,14 @@ def connection_check():
             call();checks[name] = {'status':'connected'}
         except Exception as exc:
             checks[name] = {'status':'failed','error':type(exc).__name__}
-    return {'mode':service_mode(),'checks':checks,'provisioned':False}
+    if os.getenv('ATMOS_CLOUDWATCH_ENABLED') == 'true':
+        try:
+            record_metric('ConnectionCheck', 1)
+            # Do not infer connectivity from the best-effort metric helper.
+            client('cloudwatch').put_metric_data(Namespace='Atmos/SmokeTwin', MetricData=[{'MetricName':'ConnectionCheck','Value':1,'Unit':'Count'}])
+            checks['CloudWatch'] = {'status': 'connected'}
+        except Exception as exc:
+            checks['CloudWatch'] = {'status': 'failed', 'error': type(exc).__name__}
+    result = {'mode':service_mode(),'checks':checks,'checked_at':utcnow(),'provisioned':False}
+    set_setting('aws_connection_check', result)
+    return result

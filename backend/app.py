@@ -9,12 +9,12 @@ from typing import Literal
 from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from . import agents
 from . import platform_store as ledger, analysis, aws_services
-from . import cloud_budget
+from . import cloud_budget, simulation
 from .alerts import DEFAULT_RULE, check_alerts
 from .config import CITIES, ROOT
 from .demo import seed_demo
@@ -59,6 +59,7 @@ def refresh_job():
 @asynccontextmanager
 async def lifespan(app):
     init_db()
+    simulation.initialize()
     ledger.initialize()
     ledger.recover()
     seed_demo()
@@ -136,6 +137,25 @@ def scenario(body:Scenario):
     data['impact'] = impact(data,body.city_id)
     return data
 
+class SimulationRequest(Scenario):
+    name: str = Field('Regional what-if', min_length=1, max_length=100, pattern=r'.*\S.*')
+    session_id: str = Field(min_length=16, max_length=100, pattern=r'^[a-zA-Z0-9-]+$')
+
+@app.post('/api/simulations')
+def run_simulation(body:SimulationRequest):
+    return simulation.execute(body.model_dump())
+
+@app.get('/api/simulations')
+def list_simulations(session_id: str = Query(min_length=16, max_length=100), mode: Mode = 'demo'):
+    return {'runs': simulation.history(session_id, mode)}
+
+@app.get('/api/simulations/{run_id}')
+def get_simulation(run_id: str, session_id: str = Query(min_length=16, max_length=100)):
+    result = simulation.get_run(run_id, session_id)
+    if not result:
+        raise HTTPException(404, 'Simulation not found in this session')
+    return result
+
 @app.post('/api/refresh')
 def refresh_data():
     return job('refresh',refresh_job)
@@ -196,8 +216,8 @@ def load_history(body:HistoryLoad):
     return job('history',run)
 
 @app.get('/api/impact')
-def get_impact(city_id:City='delhi',mode:Mode='demo',horizon:int=Query(6,ge=1,le=48)):
-    return impact(snapshot(mode,horizon=horizon),city_id)
+def get_impact(city_id:City='delhi',mode:Mode='demo',horizon:int=Query(6,ge=1,le=48),at:str|None=None):
+    return impact(snapshot(mode,at=at,horizon=horizon),city_id)
 
 @app.post('/api/facilities/{city_id}')
 def load_facilities(city_id:City):
@@ -335,6 +355,10 @@ def local_aws_bootstrap():
 @app.get('/api/aws/check')
 def check_aws_connection():
     return aws_services.connection_check()
+
+@app.get('/api/aws/template')
+def aws_infrastructure_template():
+    return FileResponse(ROOT/'infra'/'cloud.yaml', media_type='application/yaml', filename='atmos-cloud.yaml')
 
 @app.get('/api/aws/budget')
 def cloud_budget_status():

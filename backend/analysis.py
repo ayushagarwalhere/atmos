@@ -115,8 +115,9 @@ def start(request):
         try:
             aws_services.enqueue(run['id'])
             ledger.emit(run['id'],'enqueued',{'service':'SQS','service_mode':aws_services.service_mode()})
+            threading.Thread(target=aws_services.drain_pending,daemon=True).start()
         except Exception as exc:
-            ledger.update_run(run['id'],'failed',error=type(exc).__name__+'; local SQS is unavailable')
+            ledger.update_run(run['id'],'failed',error=type(exc).__name__+'; SQS enqueue is unavailable')
             ledger.emit(run['id'],'failed',{'error':'SQS enqueue failed'})
     else:
         threading.Thread(target=execute,args=(run['id'],),daemon=True).start()
