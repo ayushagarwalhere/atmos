@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Atmos owned EC2 hosting; public web access with restricted SSH and persistent encrypted disk
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+Parameters:
+  ApplicationProfileName:
+    Type: String
+    Description: ApplicationProfileName output from the data stack in this account
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  SshCidr:
+    Type: String
+    Description: Operator public IPv4 address with /32; never unrestricted SSH
+    AllowedPattern: '(\d{1,3}\.){3}\d{1,3}/32'
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.small, t3.medium]
+  UbuntuImage:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+Resources:
+  Network:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Network
+      InternetGatewayId: !Ref InternetGateway
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Network
+      CidrBlock: 10.42.1.0/24
+      MapPublicIpOnLaunch: true
+  Routes:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Network
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref Routes
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  SubnetRoutes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref Routes
+  WebAccess:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: User requests a website accessible to everyone
+        must: [Public web ports only, SSH restricted to operator /32, Backend port 8000 not public]
+    Properties:
+      GroupDescription: Public Atmos HTTPS and operator-only SSH
+      VpcId: !Ref Network
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SshCidr
+  Application:
+    Type: AWS::EC2::Instance
+    DependsOn: [InternetRoute, SubnetRoutes]
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: One small host for the public demonstration without an ALB or NAT gateway
+        must: [Encrypted EBS retained on termination, IMDSv2 required, Credentials supplied by application role]
+    Properties:
+      ImageId: !Ref UbuntuImage
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref ApplicationProfileName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref WebAccess]
+      CreditSpecification:
+        CPUCredits: standard
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 2
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 24
+            VolumeType: gp3
+            Encrypted: true
+            DeleteOnTermination: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-application'
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          set -Eeuo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y docker.io git nginx python3-venv curl
+          systemctl enable --now docker nginx
+          if [ ! -f /swapfile ]; then
+            fallocate -l 2G /swapfile
+            chmod 600 /swapfile
+            mkswap /swapfile
+            swapon /swapfile
+            printf '/swapfile none swap sw 0 0\n' >> /etc/fstab
+          fi
+          mkdir -p /home/ubuntu/atmos
+          git clone https://github.com/ayushagarwalhere/atmos.git /home/ubuntu/atmos/repo
+          chown -R ubuntu:ubuntu /home/ubuntu/atmos
+          install -o root -g root -m 0755 /home/ubuntu/atmos/repo/scripts/ci-ssh-entrypoint.sh /usr/local/bin/atmos-ci-deploy
+  Address:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  AddressAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt Address.AllocationId
+      InstanceId: !Ref Application
+Outputs:
+  InstanceId:
+    Value: !Ref Application
+  PublicIp:
+    Value: !Ref Address
+  NetworkId:
+    Value: !Ref Network
