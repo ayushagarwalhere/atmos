@@ -8,7 +8,6 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import { useThemeStore } from '../stores/themeStore';
 import StarsContainer from './theme/Stars';
-import WindowTypography from './WindowTypography';
 import SmokeTransportScene from './SmokeTransportScene';
 import { clamp01, range, smoothRange, sampleJourney, journeyPhase } from './journeyPath';
 
@@ -100,7 +99,6 @@ function FloatingWindow({signal,reduced,onReady}) {
         <mesh ref={handle} geometry={nodes['#WIN0003_Handle_#WIN0003_Textures_0'].geometry} material={material} position={[-0.84,-0.018,0.55]}/>
       </group>
     </group>
-    <WindowTypography signal={signal} reduced={reduced}/>
   </group>;
 }
 
@@ -131,12 +129,6 @@ function FlatJourney({signal}) {
   return <div className="flat-journey" aria-hidden="true">
     <div className="flat-cloud flat-cloud-one"/><div className="flat-cloud flat-cloud-two"/><div className="flat-cloud flat-cloud-three"/>
     <div className="flat-window">
-      <div className="flat-window-labels">
-        <span className="flat-window-label-top">SMOKE TRAVELS</span>
-        <span className="flat-window-label-bottom">KNOW WHAT ARRIVES</span>
-        <span className="flat-window-label-left">FIRE SIGNALS · WIND TRANSPORT</span>
-        <span className="flat-window-label-right">CITY OUTLOOKS · CLEARER SKIES</span>
-      </div>
       <div className="flat-sash"><span/></div>
     </div>
     <div className="flat-pod"><div className="fallback-smoke-scene">
@@ -169,7 +161,6 @@ export default function OpeningJourney({reduced,onReady}) {
       stage.style.setProperty('--window-opacity',smoothRange(p,0.4,0.08)*(1-smoothRange(p,0.64,0.04)));
       stage.style.setProperty('--window-scale',0.5+range(p,0.42,0.21)*6);
       stage.style.setProperty('--sash-angle',range(p,0.5,0.1)*95+'deg');
-      stage.style.setProperty('--window-text-angle',-range(p,0.65,0.15)*90+'deg');
       stage.style.setProperty('--entry-opacity',1-smoothRange(p,0.05,0.15));
       stage.style.setProperty('--pod-opacity',smoothRange(p,0.8,0.06));
       stage.style.setProperty('--pod-offset',(1-smoothRange(p,0.8,0.06))*30+'px');
