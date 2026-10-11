@@ -9,9 +9,11 @@ from .evidence_context import bounded
 
 def runtime_status():
     provider = os.getenv('ATMOS_AGENT_PROVIDER','local_rules')
-    return {'framework':'AWS Strands Agents SDK','provider':provider,'llm_enabled':provider in ('ollama','bedrock'),
+    model_enabled = provider in ('ollama','bedrock')
+    execution = {'bedrock':'Amazon Bedrock model','ollama':'Ollama model'}.get(provider,'Strands tools with deterministic local routing')
+    return {'framework':'AWS Strands Agents SDK','sdk_active':True,'provider':provider,'execution':execution,'llm_enabled':model_enabled,
         'specialists':['intelligence','forecast','scenario','impact','strategy'],
-        'note':'Strands orchestrator and specialist loops use an offline deterministic rule provider by default. Configure Ollama or Bedrock for language-model routing; numerical output always comes from tools.'}
+        'note':'The five-specialist Strands graph is active. Local routing is deterministic and free of model inference charges; configure Ollama or Bedrock for language-model routing. Numerical output always comes from evidence tools.'}
 
 def model_instance():
     if os.getenv('ATMOS_AGENT_PROVIDER','local_rules') in ('local_rules','tools'):
