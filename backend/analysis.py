@@ -86,6 +86,7 @@ def execute(run_id):
             'sdk_execution':{'completed_nodes':graph_result.completed_nodes,'failed_nodes':graph_result.failed_nodes,'interrupted_nodes':graph_result.interrupted_nodes,
                 'token_usage':dict(graph_result.accumulated_usage),'execution_ms':graph_result.execution_time},
             'mode':mode,'city_id':city_id,'horizon':horizon,'synthetic':mode=='demo','graph_edges':GRAPH_EDGES,
+            'question':request.get('message') or 'Regional smoke analysis','audience':request.get('audience','principal'),
             'agents':outputs,'limits':base['limits'],'duration_ms':round((time.perf_counter()-started)*1000,2),
             'note':'Numeric results are returned from specialist tools. Generated graph prose is not used as measurements.'}
         action_ids = [ledger.create_action(run_id,item['title'],dict(item,audience=request.get('audience','principal'))) for item in outputs['strategy']['actions']]

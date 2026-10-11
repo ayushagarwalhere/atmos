@@ -120,7 +120,7 @@ def publish_simulation(result):
             'services': ['S3', 'DynamoDB'], 'emulated': service_mode() != 'aws'}
 
 def record_metric(name, value, unit='Count'):
-    if service_mode() != 'aws' or os.getenv('ATMOS_CLOUDWATCH_ENABLED', 'false').lower() != 'true':
+    if service_mode() != 'aws' or not writes_enabled() or os.getenv('ATMOS_CLOUDWATCH_ENABLED', 'false').lower() != 'true':
         return
     try:
         client('cloudwatch').put_metric_data(Namespace='Atmos/SmokeTwin',
@@ -236,6 +236,7 @@ def connection_check():
             checks[name] = {'status':'failed','error':type(exc).__name__}
     if os.getenv('ATMOS_CLOUDWATCH_ENABLED') == 'true':
         try:
+            require_writes()
             # Do not infer connectivity from the best-effort metric helper.
             client('cloudwatch').put_metric_data(Namespace='Atmos/SmokeTwin', MetricData=[{'MetricName':'ConnectionCheck','Value':1,'Unit':'Count'}])
             checks['CloudWatch'] = {'status': 'connected'}

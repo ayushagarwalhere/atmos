@@ -11,10 +11,12 @@ Environmental Hacks lists Strands Agents SDK in the **Build It** stack. Atmos al
 | Amazon S3 | Private evidence JSON artifacts, partitioned by demo/live mode | Adapter and resource template prepared |
 | Amazon DynamoDB | Cloud mirror of run ID, mode, city, status and artifact pointer | Adapter and on-demand table prepared |
 | Amazon SQS | Optional analysis queue and local worker, with ledger-based duplicate claims | Adapter and queue/DLQ prepared |
+| Amazon CloudWatch | Completion and analysis-duration metrics | Adapter and log group prepared |
+| IAM EC2 role | Temporary runtime credentials scoped to this stack | Instance profile prepared |
 | OpenSearch | Optional local full-text evidence index/search | Adapter prepared; SQLite FTS5 is the default |
 | AWS SAM | Separate local Lambda evidence-manifest function | Source/template prepared; SAM runtime needed |
 
-Nothing in the resource template hosts the website. `infra/cloud.yaml` creates only a private S3 bucket, DynamoDB table, SQS analysis queue and dead-letter queue. There are no IAM users/access keys, public buckets, compute instances, managed OpenSearch cluster or automatic cloud deployment.
+`infra/cloud.yaml` prepares a private S3 bucket, DynamoDB table, SQS analysis queue/dead-letter queue, CloudWatch log group and scoped EC2 application role/profile. It does not create hosting, IAM users/access keys or public buckets. See [the smoke twin guide](SMOKE_TWIN.md) for current runtime statuses and numerical-method limitations.
 
 ## Configure authentication
 
@@ -55,7 +57,7 @@ ATMOS_DYNAMODB_TABLE=stack-run-table-output
 ATMOS_SQS_QUEUE=stack-analysis-queue-name-output
 ```
 
-Use **Check AWS connection** in the workspace. It performs read-only S3 HeadBucket, DynamoDB DescribeTable and SQS GetQueueUrl calls. It does not provision resources or invoke Bedrock. Set `ATMOS_AWS_ALLOW_WRITES=true` only when cloud writes have been approved. Restart the backend. Completed analyses then publish evidence to S3 and run metadata to DynamoDB; a failed cloud write retains the local artifact and reports the error.
+Use **Check cloud connections** in the AWS services workspace. It performs S3 HeadBucket, DynamoDB DescribeTable and SQS GetQueueUrl calls, plus a CloudWatch metric write when enabled and writes are permitted. It does not provision resources or invoke Bedrock. Restart the backend after enabling the provisioned resources. Completed simulations and analyses publish evidence to S3 and metadata to DynamoDB; a failed cloud write retains the local report and reports the error.
 
 Cloud bootstrap is deliberately rejected by the application: provisioning is managed by the reviewable stack. Runtime permissions should be restricted to this bucket/table/queue and the selected Bedrock model/inference profile. Required operations are S3 ListBucket/PutObject, DynamoDB DescribeTable/PutItem, SQS GetQueueUrl/SendMessage/ReceiveMessage/DeleteMessage and Bedrock InvokeModel/InvokeModelWithResponseStream. Scope inference-profile and destination-model permissions according to your selected model's requirements.
 
@@ -71,7 +73,7 @@ Start a local worker using the same profile/configuration:
 .venv-atmos\Scripts\python.exe -m scripts.aws_local worker
 ```
 
-The worker consumes one queue message at a time, atomically claims its SQLite run, executes the Strands graph, then deletes the processed message. Keep API and worker pointed at the same `ATMOS_DATA_DIR`. This is a local-worker integration, not a distributed database migration. After a backend restart, unfinished runs are marked interrupted; rerun deliberately to generate new evidence. Stored results remain readable.
+The API also wakes a bounded worker after enqueueing an analysis. It consumes one message at a time, atomically claims its SQLite run, executes the Strands graph, then deletes the message. Keep any manual worker pointed at the same `ATMOS_DATA_DIR`. This queue integration still depends on the instance's SQLite ledger. After a backend restart, unfinished runs are marked interrupted; rerun deliberately to generate new evidence. Stored results remain readable.
 
 ## Costs and cleanup
 
