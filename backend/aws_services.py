@@ -197,7 +197,7 @@ def retrieve(query,mode,city_id=None):
 
 def status():
     return {'build_mode':'Build It','aws_open_source':['Strands Agents SDK','OpenSearch (optional local service)','AWS SAM (optional local function)'],
-        'service_mode':service_mode(),'profile':os.getenv('AWS_PROFILE') or 'default','region':os.getenv('AWS_REGION','us-east-1'),
+        'service_mode':service_mode(),'profile':os.getenv('AWS_PROFILE') or 'default','region':os.getenv('AWS_REGION',os.getenv('ATMOS_HOSTING_REGION','us-east-1')),
         'aws_configured':configured(),'writes_enabled':os.getenv('ATMOS_AWS_ALLOW_WRITES','false').lower()=='true',
         'local_aws_configured':bool(os.getenv('ATMOS_AWS_ENDPOINT')),'opensearch_configured':bool(os.getenv('ATMOS_OPENSEARCH_URL')),
         'queue_enabled':os.getenv('ATMOS_ANALYSIS_QUEUE','local')=='sqs','cloud_deployed':os.getenv('ATMOS_HOSTING')=='ec2',
@@ -215,12 +215,14 @@ def service_inventory():
     return [
         {'name': 'Amazon EC2', 'status': 'active' if hosted else 'local', 'purpose': 'Runs FastAPI, React and the simulation worker.', 'kind': 'AWS service'},
         {'name': 'Amazon EBS', 'status': 'active' if hosted else 'local', 'purpose': 'Persistent SQLite data, saved runs and models on the EC2 volume.', 'kind': 'AWS service'},
+        {'name': 'Amazon VPC', 'status': 'active' if hosted else 'local', 'purpose': 'Instance network and security groups; the app backend listens on loopback behind HTTPS.', 'kind': 'AWS service'},
         {'name': 'AWS Strands Agents SDK', 'status': 'integrated', 'purpose': 'Orchestrates the five analysis specialists.', 'kind': 'Open source SDK'},
         {'name': 'Amazon S3', 'status': state('S3'), 'purpose': 'Private JSON evidence and simulation reports.', 'kind': 'AWS service'},
         {'name': 'Amazon DynamoDB', 'status': state('DynamoDB'), 'purpose': 'Run metadata and report pointers; 30-day TTL.', 'kind': 'AWS service'},
         {'name': 'Amazon SQS', 'status': state('SQS', os.getenv('ATMOS_ANALYSIS_QUEUE') == 'sqs'), 'purpose': 'Queued specialist analysis with a bounded worker and dead-letter queue.', 'kind': 'AWS service'},
         {'name': 'Amazon CloudWatch', 'status': state('CloudWatch', os.getenv('ATMOS_CLOUDWATCH_ENABLED') == 'true'), 'purpose': 'Simulation completion and analysis duration metrics.', 'kind': 'AWS service'},
         {'name': 'AWS CloudFormation', 'status': 'provisioned' if os.getenv('ATMOS_CLOUDFORMATION_STACK') else 'template_ready', 'purpose': 'Provisions the private storage, queues, logs and EC2 application role.', 'kind': 'AWS service'},
+        {'name': 'AWS IAM', 'status': 'configured' if os.getenv('ATMOS_AWS_MODE') == 'aws' and hosted else 'template_ready', 'purpose': 'Scoped EC2 application role with temporary credentials; account activation and role attachment required.', 'kind': 'AWS service'},
         {'name': 'Amazon Bedrock', 'status': 'configured' if os.getenv('ATMOS_AGENT_PROVIDER') == 'bedrock' else 'not_enabled', 'purpose': 'Optional paid language-model reasoning; current analysis uses a local rule router.', 'kind': 'AWS service'},
     ]
 

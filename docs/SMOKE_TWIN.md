@@ -22,6 +22,7 @@ Live mode uses imported/provider observations and the existing forecast model. P
 | --- | --- | --- |
 | EC2 | Docker application hosting and analysis worker | Current site active; migration to owner's account pending account activation |
 | EBS | SQLite, models and saved local reports | Active on current hosting instance |
+| VPC | Instance network and web/SSH access rules | Active on current hosting instance |
 | S3 | Private evidence and simulation report JSON | Stack and instance role required |
 | DynamoDB | Run metadata/report pointers with 30-day TTL | Stack and instance role required |
 | SQS | Bounded queue worker and dead-letter queue | Set `ATMOS_ANALYSIS_QUEUE=sqs` after provisioning |
