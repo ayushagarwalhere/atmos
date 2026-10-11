@@ -8,7 +8,14 @@ All ten assumptions are editable. Completed runs are stored on the server for th
 
 Explore includes regional outlines, fire/path/city/exposure layer switches, pan/zoom and a -48h to +24h timeline with pause, step and return-to-now controls. Future positions represent forecast horizons from the issue time. Paths and exposure screening are limited to the selected outlook. Maximize uses browser fullscreen when available with a CSS fallback and Escape/focus handling.
 
-Analysis retains the Strands five-specialist graph, event stream, chat, evidence and action board. Data & imports contains model evaluations, CSV formats/uploads and alert configuration. CSVs enter live storage with provenance; demo and live records remain separate. Visitors share imported data in this public demonstration; session-scoped report IDs are not a full user-account system.
+### Run the five Strands specialists
+
+1. Choose **Run demo**. This runs the 50% fire-proxy reduction and shows a baseline/what-if comparison.
+2. Select **Run five-agent analysis** below that report. Atmos carries over the same city, issue time, horizon and scenario settings.
+3. Watch each specialist call its evidence tool in order: **Intelligence** gathers fires/stations/provider freshness; **Forecast** reads the smoke path and city forecast; **Scenario** compares the baseline with your controls; **Impact** screens the supplied schools/hospitals; **Strategy** prepares audience-specific next steps.
+4. Read the five findings, open any card's evidence, inspect the event stream, update the proposed action plan, or export the saved analysis JSON. Select **Analysis** directly to run the five-agent workflow without first running a what-if.
+
+The graph and tools use the Strands Agents SDK. With `ATMOS_AGENT_PROVIDER=local_rules` (the public demo default), the SDK still executes the tool loops and graph, while a deterministic offline router selects tool calls; it does not generate free-form model reasoning and incurs no model inference charge. Bedrock and Ollama are optional providers. Every figure and action stays grounded in server-side evidence tools; generated text cannot override tool results. Demo data and scenario responses are synthetic. Data & imports contains model evaluations, CSV formats/uploads and alert configuration. CSVs enter live storage with provenance; demo and live records remain separate. Visitors share imported data in this public demonstration; session-scoped report IDs are not a full user-account system.
 
 ## Numerical method
 

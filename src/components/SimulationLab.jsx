@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, CloudRain, Copy, Download, Flame, History, Leaf, LoaderCircle, Moon, Play, RotateCcw, Save, Wind, X } from 'lucide-react';
+import { ArrowRight, Check, CloudRain, Copy, Download, Flame, History, Leaf, LoaderCircle, Moon, Play, RotateCcw, Save, Wind, Workflow, X } from 'lucide-react';
 import { api, downloadJSON } from '../api';
 import { createSessionId, persistentSessionId } from '../session';
 import { ORIGINAL_SCENARIO, SCENARIO_PRESETS, presetValues } from '../scenarios';
@@ -23,7 +23,7 @@ function ComparisonBars({ row }) {
   </div>;
 }
 
-export default function SimulationLab({ mode, cityId, horizon, data, demoTrigger, onApply }) {
+export default function SimulationLab({ mode, cityId, horizon, data, demoTrigger, onApply, onAnalyze }) {
   const [sessionId] = useState(() => persistentSessionId('atmos-simulation-session'));
   const [template, setTemplate] = useState('surge');
   const [values, setValues] = useState(() => presetValues('surge'));
@@ -105,7 +105,7 @@ export default function SimulationLab({ mode, cityId, horizon, data, demoTrigger
       </div>
     </div>
     <div ref={resultRef} className="simulation-results" aria-live="polite">
-      {result && <><div className="simulation-result-title"><div><span className="micro-label">COMPLETED · {stamp(result.created_at)} IST</span><h4>{result.name}</h4><p>{result.city_id} · +{result.horizon}h · {result.note}</p></div><div><button onClick={addComparison}><Copy size={15}/> Compare this run</button><button onClick={() => onApply(result)}><ArrowRight size={15}/> Apply to map</button><button onClick={() => downloadJSON(result, `atmos-${result.id}.json`)}><Download size={15}/> Export report</button></div></div>
+      {result && <><div className="simulation-result-title"><div><span className="micro-label">COMPLETED · {stamp(result.created_at)} IST</span><h4>{result.name}</h4><p>{result.city_id} · +{result.horizon}h · {result.note}</p></div><div><button onClick={addComparison}><Copy size={15}/> Compare this run</button><button onClick={() => onApply(result)}><ArrowRight size={15}/> Apply to map</button>{result.mode === 'demo' && <button onClick={() => onAnalyze(result)}><Workflow size={15}/> Run five-agent analysis</button>}<button onClick={() => downloadJSON(result, `atmos-${result.id}.json`)}><Download size={15}/> Export report</button></div></div>
         <div className="simulation-result-grid"><ComparisonBars row={row}/><div className="simulation-impact"><span className="micro-label">WHAT CHANGED</span><strong className={row.difference > 0 ? 'difference-up' : row.difference < 0 ? 'difference-down' : ''}>{row.difference > 0 ? '+' : ''}{fmt(row.difference)} <small>µg/m³</small></strong><p>Arrival: {arrival(row.baseline_arrival)} → {arrival(row.scenario_arrival)}</p><p>Potentially intersecting schools: {result.impact.baseline.schools} → {result.impact.scenario.schools}</p><small>{result.impact.scenario.method}</small></div></div>
         <div className="simulation-table-wrap"><table className="simulation-regional-table"><caption>Regional comparison · PM2.5 in µg/m³</caption><thead><tr><th>City</th><th>Baseline</th><th>What-if</th><th>Change</th><th>Arrival</th></tr></thead><tbody>{result.comparisons.map(item => <tr key={item.city_id}><th>{item.name}</th><td>{fmt(item.baseline_pm25)}</td><td>{fmt(item.scenario_pm25)}</td><td className={item.difference > 0 ? 'difference-up' : item.difference < 0 ? 'difference-down' : ''}>{item.difference > 0 ? '+' : ''}{fmt(item.difference)}</td><td>{arrival(item.scenario_arrival)}</td></tr>)}</tbody></table></div>
         <details className="simulation-assumptions"><summary>Method, assumptions & saved inputs</summary><p>{result.scenario.cities.find(item => item.id === result.city_id)?.forecast.response_method || result.scenario.transport_method}</p><p>{result.cloud_delivery.detail || `Report delivery: ${result.cloud_delivery.status}`}</p><pre>{JSON.stringify(result.inputs, null, 2)}</pre></details></>}
