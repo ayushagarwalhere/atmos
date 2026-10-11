@@ -1,0 +1,88 @@
+import { test, expect } from '@playwright/test';
+import fs from 'node:fs/promises';
+
+async function openTwin(page){
+  await page.goto('/');
+  await expect(page.locator('.preloader')).toHaveCount(0,{timeout:25000});
+  await page.locator('#twin').scrollIntoViewIfNeeded();
+  await expect(page.locator('.twin-map')).toBeVisible({timeout:20000});
+}
+
+test('weather scenarios, exports, chat and saved specialist workflow use actual backend evidence',async({page})=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await openTwin(page);
+  await page.getByRole('tab',{name:'Scenario',exact:true}).click();
+  const changed=page.waitForResponse(response=>response.url().endsWith('/api/scenario')&&response.request().postDataJSON()?.rain_mm===8);
+  await page.getByRole('button',{name:'Rainy',exact:true}).click();
+  const data=await (await changed).json();
+  expect(data.scenario.cloud_cover_pct).toBe(95);
+  expect(data.cities[0].weather.effective.rain_mm).toBe(8);
+  await expect(page.locator('.scenario-comparison')).toContainText('Baseline');
+  const exported=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Export twin evidence'}).click();
+  const download=await exported;
+  const payload=JSON.parse(await fs.readFile(await download.path(),'utf8'));
+  expect(payload.scenario.rain_mm).toBe(8);
+  await page.getByRole('tab',{name:'Forecast',exact:true}).click();
+  await expect(page.locator('.scenario-active-note')).toBeVisible();
+  await page.getByRole('button',{name:'Select Chandigarh'}).click();
+  await expect(page.locator('.city-summary-title h3')).toHaveText('Chandigarh');
+  await page.getByRole('button',{name:'Zoom in'}).click();
+  await expect(page.locator('.map-layer')).toHaveAttribute('style',/scale\(1.25\)/);
+  await page.getByRole('button',{name:'Reset map'}).click();
+  await page.getByRole('button',{name:'What happens with 8 mm rain?'}).click();
+  await expect(page.locator('.chat-message.agent')).toContainText('Rain can remove airborne particles',{timeout:20000});
+  const launched=page.waitForRequest(request=>request.url().endsWith('/api/analysis'));
+  await page.getByRole('button',{name:'Run city analysis'}).click();
+  expect((await launched).postDataJSON().rain_mm).toBe(8);
+  await expect(page.locator('.run-summary>b')).toContainText('COMPLETE',{timeout:30000});
+  await expect(page.locator('.specialist-node.complete')).toHaveCount(5);
+  await page.getByRole('tab',{name:'Action plan',exact:true}).click();
+  await expect(page.locator('.action-board article')).toHaveCount(3);
+  const update=page.waitForResponse(response=>response.url().includes('/api/actions/')&&response.request().method()==='PATCH');
+  await page.locator('.action-board select').first().selectOption('done');
+  expect((await update).status()).toBe(200);
+  await page.getByRole('tab',{name:'Evidence library',exact:true}).click();
+  await expect(page.locator('.artifact-list article').first()).toBeVisible();
+  await page.getByLabel('Search saved evidence').fill('rain');
+  await page.getByRole('button',{name:'Search',exact:true}).click();
+  await expect(page.locator('.search-results')).toContainText('Chandigarh');
+  await page.locator('#twin').scrollIntoViewIfNeeded();
+  await page.screenshot({path:'artifacts/weather-desktop.png'});
+  expect(errors).toEqual([]);
+});
+
+test('user CSV uploads drive live readings, weather, scenarios and validation',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await openTwin(page);
+  await page.getByRole('button',{name:'Open navigation'}).click();
+  await page.getByRole('navigation',{name:'Mobile navigation'}).getByRole('link',{name:'Smoke twin'}).click();
+  await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toHaveCount(0);
+  const now=new Date();now.setUTCMinutes(0,0,0);const time=now.toISOString();
+  await page.getByLabel('Source / provenance').fill('User weather CSV integration check');
+  await page.getByLabel('Dataset',{exact:true}).selectOption('wind');
+  const csv=`city_id,time,speed_kmh,direction_deg,rain_mm,cloud_cover_pct,humidity_pct,temperature_c\ndelhi,${time},20,310,6,85,70,25\n`;
+  await page.getByLabel('CSV file').setInputFiles({name:'user-weather.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+  await expect(page.getByLabel('CSV contents')).toHaveValue(csv);
+  await page.getByRole('button',{name:'Import into live storage'}).click();
+  await expect(page.getByRole('button',{name:'Live data',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByLabel('Dataset',{exact:true}).selectOption('aqi');
+  await page.getByLabel('CSV contents').fill(`city_id,station_id,time,pm25\ndelhi,user-station,${time},123\n`);
+  await page.getByRole('button',{name:'Import into live storage'}).click();
+  await page.getByRole('tab',{name:'Forecast',exact:true}).click();
+  await expect(page.locator('.risk-reading strong')).toHaveText('123');
+  await expect(page.locator('.weather-strip')).toContainText('6.0');
+  await expect(page.locator('.forecast-result strong')).toContainText('123.0');
+  await page.getByRole('tab',{name:'Scenario',exact:true}).click();
+  const changed=page.waitForResponse(response=>response.url().endsWith('/api/scenario')&&response.request().postDataJSON()?.rain_mm===4);
+  await page.getByLabel('Rainfall in one hour').fill('4');
+  const result=await (await changed).json();
+  expect(result.mode).toBe('live');
+  expect(result.cities[0].observed_pm25).toBe(123);
+  expect(result.cities[0].forecast.feature_values.rain_mm).toBe(4);
+  await page.getByRole('button',{name:'Use original feed inputs'}).click();
+  await expect(page.getByLabel('Rainfall in one hour')).toHaveValue('6');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.locator('#twin').scrollIntoViewIfNeeded();
+  await page.screenshot({path:'artifacts/weather-mobile.png'});
+});

@@ -35,6 +35,13 @@ export default function MissionControl({mode,cityId,horizon,audience,scenario,re
     source.onerror=()=>{setNotice('Event connection interrupted; inspect the saved run or reconnect.');source.close()};
     return()=>source.close();
   },[run?.id,run?.status]);
+  useEffect(()=>{
+    if(!active)return;
+    const timer=setInterval(async()=>{
+      try{const current=await api('/runs/'+run.id);if(terminal(current.status)){setRun(current);setRefresh(value=>value+1)}}catch{/* The event stream and saved-run controls remain available. */}
+    },3000);
+    return()=>clearInterval(timer);
+  },[active,run?.id]);
   async function launch(){
     setSubmitting(true);setError('');setNotice('');setEvents([]);
     try{

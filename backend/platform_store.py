@@ -73,7 +73,7 @@ def save_artifact(run_id,title,payload):
     run = get_run(run_id)
     artifact_id = str(uuid.uuid4())
     with connect() as db:
-        db.execute('INSERT INTO artifacts VALUES (?,?,?,?,?,?,?,?,?)',(artifact_id,run_id,run['mode'],run['city_id'],utcnow(),title,json.dumps(payload,allow_nan=False),'local'))
+        db.execute('INSERT INTO artifacts VALUES (?,?,?,?,?,?,?,?)',(artifact_id,run_id,run['mode'],run['city_id'],utcnow(),title,json.dumps(payload,allow_nan=False),'local'))
         db.execute('INSERT INTO evidence_search VALUES (?,?,?,?,?)',(artifact_id,run['mode'],run['city_id'],title,json.dumps(payload)))
     audit('artifact.created',artifact_id,{'run_id':run_id,'mode':run['mode']})
     return artifact_id

@@ -7,6 +7,8 @@ dist
 test-results
 playwright-report
 .venv/
+.venv-atmos/
+.venv311/
 data/
 __pycache__/
 .pytest_cache/

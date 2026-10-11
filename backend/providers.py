@@ -10,6 +10,7 @@ import httpx
 from .config import CITIES
 from .storage import put, provider_status, utcnow
 from .transport import distance
+from .weather import WEATHER_FIELDS
 
 def timestamp(value):
     dt = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
@@ -64,12 +65,12 @@ def normalize_fires(rows, source):
 def weather_refresh(start=None, end=None):
     points = CITIES + [{'id': 'punjab', 'lat': 30.7, 'lon': 75.6}, {'id': 'haryana', 'lat': 29.7, 'lon': 76.5}]
     params = {'latitude': ','.join(str(p['lat']) for p in points), 'longitude': ','.join(str(p['lon']) for p in points),
-        'hourly': 'wind_speed_10m,wind_direction_10m,boundary_layer_height', 'timezone': 'UTC', 'wind_speed_unit': 'kmh'}
+        'hourly': 'wind_speed_10m,wind_direction_10m,rain,cloud_cover,relative_humidity_2m,temperature_2m,boundary_layer_height', 'timezone': 'UTC', 'wind_speed_unit': 'kmh'}
     if start:
         url = 'https://archive-api.open-meteo.com/v1/archive'
         params.update(start_date=start, end_date=end)
         # ERA5 boundary-layer height is not universally available in this endpoint.
-        params['hourly'] = 'wind_speed_10m,wind_direction_10m'
+        params['hourly'] = 'wind_speed_10m,wind_direction_10m,rain,cloud_cover,relative_humidity_2m,temperature_2m'
     else:
         url = 'https://api.open-meteo.com/v1/forecast'
         params.update(past_days=2, forecast_days=3)
@@ -84,9 +85,9 @@ def weather_refresh(start=None, end=None):
             if speed is None or direction is None:
                 continue
             time = timestamp(raw_time + '+00:00')
-            blh = hourly.get('boundary_layer_height', [None]*len(hourly['time']))[index]
+            weather = {name: hourly.get(provider, [None]*len(hourly['time']))[index] for name, (provider, _, _) in WEATHER_FIELDS.items()}
             rows.append({'id': identity(point['id'], time), 'city_id': point['id'], 'lat': point['lat'], 'lon': point['lon'],
-                'time': time, 'speed_kmh': float(speed), 'direction_deg': float(direction), 'boundary_layer_height': blh,
+                'time': time, 'speed_kmh': float(speed), 'direction_deg': float(direction), **weather,
                 'issued_at': issued, 'historical': bool(start), 'source': 'Open-Meteo ERA5' if start else 'Open-Meteo forecast'})
     put('wind', rows, 'live')
     provider_status('Open-Meteo', 'ok', '10 m wind is a simplified transport input; historical archives are retrospective hindcasts', len(rows))

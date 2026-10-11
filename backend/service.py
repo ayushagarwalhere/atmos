@@ -8,6 +8,7 @@ from .forecast import hourly_air, predict_city
 from .providers import identity, normalize_fires, timestamp
 from .storage import records, put, providers, setting, utcnow
 from .transport import cluster_fires, transport_links, distance
+from .weather import WEATHER_FIELDS, current_weather, interpret_weather
 
 def at_time(raw=None):
     return datetime.fromisoformat(timestamp(raw)) if raw else datetime.now(timezone.utc).replace(minute=0,second=0,microsecond=0)
@@ -20,7 +21,7 @@ def pm25_subindex(mean):
             return round(index_lo+(index_hi-index_lo)*(rounded-lo)/(hi-lo))
     return 500 if rounded>500 else None
 
-def snapshot(mode='live', at=None, horizon=6, direction=None, speed=None, multiplier=1, persist=False):
+def snapshot(mode='live', at=None, horizon=6, direction=None, speed=None, multiplier=1, persist=False, smoke_factor=1, burning='unspecified', **weather):
     moment = at_time(at)
     air = hourly_air(mode)
     fires = records('fires',mode,start=(moment-timedelta(hours=24)).isoformat(),end=moment.isoformat())
@@ -28,13 +29,20 @@ def snapshot(mode='live', at=None, horizon=6, direction=None, speed=None, multip
     clusters = sorted(cluster_fires(fires),key=lambda c:c['total_frp'],reverse=True)
     total_clusters = len(clusters)
     clusters = clusters[:80]
+    if multiplier == 0:
+        clusters = []
     for cluster in clusters:
         cluster['fire_count'] = round(cluster['fire_count']*multiplier)
         cluster['total_frp'] = round(cluster['total_frp']*multiplier,2)
-    links = transport_links(clusters,CITIES,winds,moment,direction,speed)
+    links = transport_links(clusters,CITIES,winds,moment,direction,speed) if smoke_factor > 0 else []
     cities, predictions = [], []
     for city in CITIES:
-        prediction = predict_city(city,moment,mode,horizon,direction,speed,multiplier,(air,fires,winds))
+        prediction = predict_city(city,moment,mode,horizon,direction,speed,multiplier,(air,fires,winds),smoke_factor,**weather)
+        if burning != 'unspecified':
+            prediction.update(scenario=True,interval_valid_for_scenario=False)
+        changed = direction is not None or speed is not None or multiplier != 1 or smoke_factor != 1 or any(value is not None for value in weather.values())
+        baseline = predict_city(city,moment,mode,horizon,context=(air,fires,winds)) if changed else prediction
+        meteo = current_weather(city['id'],moment,winds,dict(weather,direction=direction,speed=speed))
         incoming = [edge for edge in links if edge['city_id']==city['id'] and edge['arrives']]
         samples = [value for (name,time),value in air.items() if name==city['id'] and moment-timedelta(hours=24)<time<=moment]
         recent = [(time,value) for (name,time),value in air.items() if name==city['id'] and time<=moment]
@@ -47,6 +55,8 @@ def snapshot(mode='live', at=None, horizon=6, direction=None, speed=None, multip
             subindex_label='24h PM2.5-only Indian sub-index, not overall AQI', valid_hours_24h=len(samples),
             history=[{'time':time.isoformat(),'pm25':value} for (name,time),value in sorted(air.items(),key=lambda item:item[0][1]) if name==city['id'] and moment-timedelta(hours=48)<time<=moment],
             stations=sorted(city_stations,key=lambda station:station.get('distance_km',0)), forecast=prediction,
+            baseline_forecast=baseline, weather=meteo, environment=interpret_weather(meteo,multiplier,smoke_factor,burning),
+            scenario_difference=round(prediction['pm25']-baseline['pm25'],2) if prediction['pm25'] is not None and baseline['pm25'] is not None else None,
             arrival_hours=min((edge['travel_hours'] for edge in incoming),default=None),
             transport_score=max((edge['transport_score'] for edge in incoming),default=None), source_clusters=[edge['cluster_id'] for edge in incoming])
         cities.append(outlook)
@@ -57,7 +67,7 @@ def snapshot(mode='live', at=None, horizon=6, direction=None, speed=None, multip
     return {'mode':mode,'time':moment.isoformat(),'horizon':horizon,'cities':cities,'clusters':clusters,'edges':links,
         'fires_count':len(fires),'total_frp':round(sum(f['frp'] for f in fires)*multiplier,2),'providers':providers(),'limits':LIMITS,
         'clusters_truncated':total_clusters>80, 'transport_method':'hourly nearest-grid 10 m wind drift; 15 km initial spread + 3 km/hour',
-        'scenario':{'wind_direction':direction,'wind_speed':speed,'fire_multiplier':multiplier},
+        'scenario':{'wind_direction':direction,'wind_speed':speed,'fire_multiplier':multiplier,'smoke_factor':smoke_factor,'burning':burning,**weather},
         'data_note':'All records and metrics in this mode are synthetic.' if mode=='demo' else 'Real imported/provider records only; missing feeds stay missing.'}
 
 def impact(snapshot_data, city_id):
@@ -116,6 +126,11 @@ def import_csv(kind, text, mode='live', source='User CSV import'):
                     raise ValueError('Invalid wind speed/direction')
                 base.update(lat=float(row.get('lat') or city['lat']),lon=float(row.get('lon') or city['lon']),speed_kmh=speed,direction_deg=direction,
                     boundary_layer_height=float(row['boundary_layer_height']) if row.get('boundary_layer_height') else None, historical=True,issued_at=time)
+                for name, (_, lo, hi) in WEATHER_FIELDS.items():
+                    value = float(row[name]) if row.get(name) else None
+                    if value is not None and (not math.isfinite(value) or not lo <= value <= hi):
+                        raise ValueError(f'{name} must be {lo}–{hi}')
+                    base[name] = value
             elif kind=='facilities':
                 if row['kind'] not in ('school','hospital','district'):
                     raise ValueError('Facility kind must be school, hospital or district')

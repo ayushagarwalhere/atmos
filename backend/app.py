@@ -4,15 +4,17 @@ import threading
 import uuid
 import json
 from contextlib import asynccontextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from . import agents
 from . import platform_store as ledger, analysis, aws_services
+from . import cloud_budget
 from .alerts import DEFAULT_RULE, check_alerts
 from .config import CITIES, ROOT
 from .demo import seed_demo
@@ -94,6 +96,12 @@ async def local_origin_guard(request:Request,call_next):
 async def validation_error(request,exc):
     return JSONResponse({'detail':str(exc)},status_code=400)
 
+@app.exception_handler(RequestValidationError)
+async def request_validation_error(request,exc):
+    # Omit raw inputs: non-finite JSON numbers cannot be encoded into an error response.
+    return JSONResponse({'detail': [{'loc': error['loc'], 'msg': error['msg'], 'type': error['type']}
+        for error in exc.errors()]},status_code=422)
+
 @app.get('/api/health')
 def health():
     return {'status':'ok','time':utcnow(),'providers':providers(),'agents':agents.runtime_status(),
@@ -112,10 +120,17 @@ class Scenario(BaseModel):
     direction:float|None=Field(None,ge=0,le=360)
     speed:float|None=Field(None,ge=0,le=150)
     multiplier:float=Field(1,ge=0,le=4)
+    rain_mm:float|None=Field(None,ge=0,le=200)
+    cloud_cover_pct:float|None=Field(None,ge=0,le=100)
+    humidity_pct:float|None=Field(None,ge=0,le=100)
+    temperature_c:float|None=Field(None,ge=-90,le=65)
+    boundary_layer_height:float|None=Field(None,ge=0,le=10000)
+    smoke_factor:float=Field(1,ge=0,le=3)
+    burning:Literal['unspecified','crop_residue','wildfire','waste']='unspecified'
 
 @app.post('/api/scenario')
 def scenario(body:Scenario):
-    data = snapshot(body.mode,body.at,body.horizon,body.direction,body.speed,body.multiplier)
+    data = snapshot(**body.model_dump(exclude={'city_id'}))
     data['impact'] = impact(data,body.city_id)
     return data
 
@@ -198,7 +213,7 @@ class Chat(Scenario):
 @app.post('/api/chat')
 def ask(body:Chat):
     return agents.chat(body.message,body.city_id,body.mode,body.audience,body.horizon,
-        {'direction':body.direction,'speed':body.speed,'multiplier':body.multiplier})
+        body.model_dump(exclude={'message','city_id','mode','audience','horizon','at'}))
 
 class CSVImport(BaseModel):
     kind:Literal['fires','wind','aqi','facilities','news']
@@ -212,7 +227,7 @@ def import_data(body:CSVImport):
 
 TEMPLATES = {
     'fires':'latitude,longitude,time,confidence,frp\n30.3,75.5,2026-10-09T12:00:00+00:00,n,8.5\n',
-    'wind':'city_id,time,speed_kmh,direction_deg,lat,lon,boundary_layer_height\ndelhi,2026-10-09T12:00:00+00:00,18,310,28.6139,77.2090,500\n',
+    'wind':'city_id,time,speed_kmh,direction_deg,lat,lon,boundary_layer_height,rain_mm,cloud_cover_pct,humidity_pct,temperature_c\ndelhi,2026-10-09T12:00:00+00:00,18,310,28.6139,77.2090,500,0,40,65,28\n',
     'aqi':'city_id,station_id,time,pm25,lat,lon\ndelhi,station-001,2026-10-09T12:00:00+00:00,65,28.6139,77.2090\n',
     'facilities':'city_id,time,name,kind,lat,lon,population\ndelhi,2026-10-09T12:00:00+00:00,Example school,school,28.61,77.2,\n',
     'news':'city_id,time,title,url\ndelhi,2026-10-09T12:00:00+00:00,Source headline,https://www.pib.gov.in/\n',
@@ -222,7 +237,8 @@ TEMPLATES = {
 def template(kind:str):
     if kind not in TEMPLATES:
         raise HTTPException(404,'Template not found')
-    return PlainTextResponse(TEMPLATES[kind],media_type='text/csv',headers={'Content-Disposition':f'attachment; filename=atmos-{kind}-template.csv'})
+    example_time = datetime.now(timezone.utc).replace(minute=0,second=0,microsecond=0).isoformat()
+    return PlainTextResponse(TEMPLATES[kind].replace('2026-10-09T12:00:00+00:00',example_time),media_type='text/csv',headers={'Content-Disposition':f'attachment; filename=atmos-{kind}-template.csv'})
 
 class AlertRule(BaseModel):
     enabled:bool=False
@@ -317,6 +333,10 @@ def local_aws_bootstrap():
 @app.get('/api/aws/check')
 def check_aws_connection():
     return aws_services.connection_check()
+
+@app.get('/api/aws/budget')
+def cloud_budget_status():
+    return cloud_budget.status()
 
 @app.post('/api/aws/queue/process')
 def process_queue():

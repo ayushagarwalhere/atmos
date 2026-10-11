@@ -7,7 +7,7 @@ from strands.models.model import Model
 
 def route_text(text):
     text = text.lower()
-    return 'scenario' if any(word in text for word in ('what if','double','shift','scenario')) else 'impact' if any(word in text for word in ('exposure','population','hospital','how many','district')) else 'strategy' if any(word in text for word in ('advis','principal','parent','should','school guidance')) else 'intelligence' if any(word in text for word in ('data','news','latest','source','fires','station')) else 'forecast'
+    return 'scenario' if any(word in text for word in ('what if','double','shift','scenario','rain','cloud','burning','wind speed','humidity')) else 'impact' if any(word in text for word in ('exposure','population','hospital','how many','district')) else 'strategy' if any(word in text for word in ('advis','principal','parent','should','school guidance')) else 'intelligence' if any(word in text for word in ('data','news','latest','source','fires','station')) else 'forecast'
 
 class EvidenceRouterModel(Model):
     def update_config(self,**config):

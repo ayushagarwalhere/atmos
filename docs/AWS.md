@@ -33,7 +33,15 @@ ATMOS_AWS_MODE=aws
 ATMOS_AWS_ALLOW_WRITES=false
 ```
 
-The model must support Bedrock Converse tool use and be available to the chosen account/region. The configured model ID is not proof of availability. Bedrock calls are billable; the adapter limits each generated response to 512 tokens and bounds its request timeouts, but this is **not a dollar spending cap**. A full analysis invokes five specialists and can make multiple model/tool turns. Choose the model and an acceptable budget before enabling it.
+The model must support Bedrock Converse tool use and be available to the chosen account/region. The configured model ID is not proof of availability. Mumbai (`ap-south-1`) is the initial data-service region for this India-based project. Verify model availability separately: Nova Lite v1 lists geographic cross-region inference for Mumbai, so discover the account's supported inference profile rather than assuming its direct model ID works there.
+
+Set `ATMOS_EXPECTED_AWS_ACCOUNT` to the intended 12-digit account ID. Every real SDK session checks STS identity before service access. Authentication and model access must succeed before enabling Bedrock.
+
+### Application spending controls
+
+The user's total allowance is **$25**. Paid inference stays blocked until verified current model/region input and output prices are supplied through `ATMOS_BEDROCK_INPUT_USD_PER_MILLION` and `ATMOS_BEDROCK_OUTPUT_USD_PER_MILLION`. Before each SDK stream the app atomically reserves a conservative byte-based input estimate plus the maximum output cost. Its lifetime ledger pauses inference at **$5 in reservations or 100 calls**, whichever occurs first. Failed calls retain their reservation. Each request is limited to 50 KB of conversation/tools and 512 output tokens; automatic SDK retries are disabled. Real data-service operations pause at 1,000 calls, and evidence uploads are limited to 2 MB each. The ledger can be viewed at `/api/aws/budget`.
+
+These controls leave headroom, but **they are not an account-wide $25 hard stop**. Storage, taxes, other applications, cross-region costs and changed pricing are outside this ledger. Preserve the data directory; deleting it resets reservations. Use an AWS Budget alert as an additional measure and check account charges before deployment; AWS documents delayed budget updates. A full five-specialist analysis can invoke multiple model/tool turns.
 
 ## Review resources before creating them
 
@@ -60,7 +68,7 @@ ATMOS_ANALYSIS_QUEUE=sqs
 Start a local worker using the same profile/configuration:
 
 ```powershell
-.venv\Scripts\python.exe -m scripts.aws_local worker
+.venv-atmos\Scripts\python.exe -m scripts.aws_local worker
 ```
 
 The worker consumes one queue message at a time, atomically claims its SQLite run, executes the Strands graph, then deletes the processed message. Keep API and worker pointed at the same `ATMOS_DATA_DIR`. This is a local-worker integration, not a distributed database migration. After a backend restart, unfinished runs are marked interrupted; rerun deliberately to generate new evidence. Stored results remain readable.
@@ -76,11 +84,11 @@ S3 evidence expires after 30 days. The bucket is retained when the stack is dele
 The emulator remains useful for regression checks but is not the recommended cloud authentication path. Moto is a third-party testing emulator, not an AWS product. To run it without Docker:
 
 ```powershell
-.venv\Scripts\python.exe -m pip install -r requirements-build-it.txt
-.venv\Scripts\moto_server.exe -H 127.0.0.1 -p 5000
+.venv-atmos\Scripts\python.exe -m pip install -r requirements-build-it.txt
+.venv-atmos\Scripts\moto_server.exe -H 127.0.0.1 -p 5000
 ```
 
-Set `ATMOS_AWS_MODE=local`, `ATMOS_AWS_ENDPOINT=http://localhost:5000`, leave cloud resource variables empty, and run `.venv\Scripts\python.exe -m scripts.aws_local bootstrap`. `compose.build-it.yml` also supplies optional Moto and OpenSearch services; it binds their ports to loopback only. Its OpenSearch security-disabled configuration is for isolated local development, not cloud deployment.
+Set `ATMOS_AWS_MODE=local`, `ATMOS_AWS_ENDPOINT=http://localhost:5000`, leave cloud resource variables empty, and run `.venv-atmos\Scripts\python.exe -m scripts.aws_local bootstrap`. `compose.build-it.yml` also supplies optional Moto and OpenSearch services; it binds their ports to loopback only. Its OpenSearch security-disabled configuration is for isolated local development, not cloud deployment.
 
 For OpenSearch set `ATMOS_OPENSEARCH_URL=http://localhost:9200` and index the library from the workspace. Retrieval always filters demo/live and city; unavailable OpenSearch falls back to SQLite with an explicit error label.
 
@@ -91,5 +99,7 @@ For the optional SAM manifest function, install AWS SAM CLI and a supported cont
 - [Hackathon Build It requirements](https://www.wemakedevs.org/aws/env)
 - [AWS profile configuration](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
 - [Bedrock pricing](https://aws.amazon.com/bedrock/pricing/)
+- [Nova Lite regional availability](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-lite.html)
+- [AWS Budgets update delays](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
 - [Strands graph API](https://strandsagents.com/docs/api/python/strands.multiagent.graph/)
 - [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli.html)

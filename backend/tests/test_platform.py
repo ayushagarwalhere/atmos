@@ -1,7 +1,6 @@
 import importlib.util
 import json
 from pathlib import Path
-import time
 import pytest
 from backend import platform_store as ledger, analysis, aws_services
 
@@ -84,11 +83,12 @@ def test_aws_s3_dynamodb_sqs_and_lambda_manifest(client,monkeypatch):
         # The SAM handler runs against the same emulated S3 object.
         spec = importlib.util.spec_from_file_location('manifest_handler',Path(__file__).resolve().parents[2]/'infra/manifest/handler.py')
         handler = importlib.util.module_from_spec(spec);spec.loader.exec_module(handler)
-        monkeypatch.setattr(handler.boto3,'client',lambda *args,**kwargs:mock_client('s3'))
-        # Avoid recursion after patching boto3.client (module singleton).
-        monkeypatch.undo()
-        manifest = handler.handler({'key':key},None) if False else json.loads(body)
-        assert manifest['payload']['framework']=='AWS Strands Graph'
+        s3_client = mock_client('s3')
+        monkeypatch.setattr(handler.boto3,'client',lambda *args,**kwargs:s3_client)
+        manifest = handler.handler({'key':key},None)
+        assert manifest['framework']=='AWS Strands Graph'
+        assert len(manifest['sha256'])==64
+        assert len(manifest['specialists'])==5
 
 def test_opensearch_mode_and_city_filter(client,monkeypatch):
     import httpx

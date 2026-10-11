@@ -1,0 +1,3 @@
+# Small in-process AWS API checks; no emulator server or Docker required.
+-r requirements.txt
+moto[s3,dynamodb,sqs]>=5.1,<6

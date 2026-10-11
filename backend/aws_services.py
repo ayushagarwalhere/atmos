@@ -6,6 +6,7 @@ import boto3
 import httpx
 from botocore.config import Config
 from . import platform_store as ledger
+from . import cloud_budget
 
 def service_mode():
     return os.getenv('ATMOS_AWS_MODE','local' if os.getenv('ATMOS_AWS_ENDPOINT') else 'disabled')
@@ -14,7 +15,25 @@ def configured():
     return service_mode()=='aws' or (service_mode()=='local' and bool(endpoint()))
 
 def aws_session():
-    return boto3.Session(profile_name=os.getenv('AWS_PROFILE') or None,region_name=os.getenv('AWS_REGION','us-east-1'))
+    session = boto3.Session(profile_name=os.getenv('AWS_PROFILE') or None,region_name=os.getenv('AWS_REGION','ap-south-1'))
+    expected = os.getenv('ATMOS_EXPECTED_AWS_ACCOUNT')
+    if expected:
+        identity = session.client('sts',config=Config(connect_timeout=3,read_timeout=10,retries={'total_max_attempts':1})).get_caller_identity()
+        if identity['Account']!=expected:
+            raise ValueError('AWS profile account does not match ATMOS_EXPECTED_AWS_ACCOUNT')
+    return session
+
+class MeteredClient:
+    def __init__(self,inner,service):
+        self.inner,self.service = inner,service
+    def __getattr__(self,name):
+        target = getattr(self.inner,name)
+        if not callable(target):
+            return target
+        def invoke(*args,**kwargs):
+            cloud_budget.reserve(self.service)
+            return target(*args,**kwargs)
+        return invoke
 
 def require_writes():
     if service_mode()=='aws' and os.getenv('ATMOS_AWS_ALLOW_WRITES','false').lower()!='true':
@@ -30,7 +49,7 @@ def endpoint():
 
 def client(service):
     if service_mode()=='aws':
-        return aws_session().client(service,config=Config(connect_timeout=3,read_timeout=15,retries={'max_attempts':2}))
+        return MeteredClient(aws_session().client(service,config=Config(connect_timeout=3,read_timeout=15,retries={'total_max_attempts':1})),service)
     if service_mode()!='local':
         raise ValueError('AWS services are disabled; choose profile-backed aws or local mode')
     url = endpoint()
@@ -64,8 +83,11 @@ def publish(run_id,artifact_id):
     require_writes()
     run = ledger.get_run(run_id)
     document = ledger.artifact(artifact_id)
+    raw = json.dumps(document,allow_nan=False).encode()
+    if len(raw)>2000000:
+        raise ValueError('Evidence object exceeds the 2 MB cloud upload limit')
     resources = names()
-    client('s3').put_object(Bucket=resources['bucket'],Key=f"{run['mode']}/{artifact_id}.json",Body=json.dumps(document,allow_nan=False).encode(),ContentType='application/json')
+    client('s3').put_object(Bucket=resources['bucket'],Key=f"{run['mode']}/{artifact_id}.json",Body=raw,ContentType='application/json')
     client('dynamodb').put_item(TableName=resources['table'],Item={'id':{'S':run_id},'mode':{'S':run['mode']},'city_id':{'S':run['city_id']},'status':{'S':run['status']},'artifact_id':{'S':artifact_id},'updated_at':{'S':run['updated_at']}})
     with ledger.connect() as db:
         db.execute('UPDATE artifacts SET delivery=? WHERE id=?',('S3 AWS' if service_mode()=='aws' else 'S3 local emulator',artifact_id))
@@ -133,7 +155,7 @@ def retrieve(query,mode,city_id=None):
 
 def status():
     return {'build_mode':'Build It','aws_open_source':['Strands Agents SDK','OpenSearch (optional local service)','AWS SAM (optional local function)'],
-        'service_mode':service_mode(),'profile':os.getenv('AWS_PROFILE','default'),'region':os.getenv('AWS_REGION','us-east-1'),
+        'service_mode':service_mode(),'profile':os.getenv('AWS_PROFILE') or 'default','region':os.getenv('AWS_REGION','us-east-1'),
         'aws_configured':configured(),'writes_enabled':os.getenv('ATMOS_AWS_ALLOW_WRITES','false').lower()=='true',
         'local_aws_configured':bool(os.getenv('ATMOS_AWS_ENDPOINT')),'opensearch_configured':bool(os.getenv('ATMOS_OPENSEARCH_URL')),
         'queue_enabled':os.getenv('ATMOS_ANALYSIS_QUEUE','local')=='sqs','cloud_deployed':False,

@@ -8,26 +8,32 @@ Requires Node.js 20.19+ or 22.12+ and Python 3.11+ (3.12 recommended).
 
 ```powershell
 npm install
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-Copy-Item .env.example .env
+py -3.12 -m venv .venv-atmos
+.venv-atmos\Scripts\python.exe -m pip install -r requirements.txt
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 npm run dev:full
 ```
 
-Open **http://127.0.0.1:5173**. Vite proxies `/api` to FastAPI at port 8000. Dependencies and `.venv` are already installed in this checkout. `npm run dev` starts only the frontend; `npm run api` starts only the backend. For a built application, run `npm run build`, then `npm run api` and open http://127.0.0.1:8000. API documentation: http://127.0.0.1:8000/docs.
+Open **http://127.0.0.1:5173**. Vite proxies `/api` to FastAPI at port 8000. This checkout has a working `.venv311`; the launcher skips the incompatible `.venv-atmos` environment. `npm run dev` starts only the frontend; `npm run api` starts only the backend. For a built application, run `npm run build`, then `npm run api` and open http://127.0.0.1:8000. API documentation: http://127.0.0.1:8000/docs.
+
+Use `py -3.11` if Python 3.12 is unavailable. Avoid recreating an existing environment with a different Python version: installed native packages belong to its original interpreter. The launcher checks FastAPI imports and selects the first working environment from `.venv-atmos`, `.venv`, and `.venv311`. `ATMOS_PYTHON` can select an explicit interpreter. If a recreated environment reports a Pydantic native import error, create a fresh environment in a new directory, install `requirements.txt` there, and set `ATMOS_PYTHON` to its Python executable.
 
 Demo mode uses reproducible synthetic records, clearly labeled throughout. Live mode reads only real provider/imported records and reports missing inputs. SQLite and trained artifacts are in ignored `data/`; credentials stay in the backend `.env`.
 
+Run `npm run demo:prepare` once to prepare synthetic models for 6, 12 and 24 hours before a demo. CSV uploads or pasted CSV contents are stored in Live data and automatically select that mode. Weather CSVs can include rain, cloud cover, humidity and temperature; blanks remain missing. All forecast, scenario, impact and specialist evidence uses the selected mode's stored inputs.
+
 ## Implemented phases
+
+The expanded analysis workspace runs a real five-specialist Strands graph with persistent runs, streamed events, saved evidence/search, an audit ledger and tracked action plans. See [architecture](docs/ARCHITECTURE.md) and the [AWS profile setup guide](docs/AWS.md). Your AWS profile can power Bedrock inference and S3/DynamoDB/SQS; the reviewed resource template is [infra/cloud.yaml](infra/cloud.yaml). Cloud writes default off and resources are not automatically created.
 
 | Phase | Implementation |
 | --- | --- |
-| Data | NASA FIRMS VIIRS, Open-Meteo forecast/archive winds, OpenAQ v3 hourly station PM2.5, filtered official PIB RSS; SQLite tables, provenance, status and scheduled refresh. |
+| Data | NASA FIRMS VIIRS, Open-Meteo forecast/archive wind, rain, clouds, humidity and temperature, OpenAQ v3 hourly station PM2.5, filtered official PIB RSS; SQLite tables, provenance, status and scheduled refresh. |
 | Nodes | DBSCAN fire clusters with center, timestamp, count and total FRP; four city nodes and nearest station metadata. |
 | Edges | Hourly wind drift, distance, bearing, arrival, spread and transport score; moving map particles and selectable nodes. |
 | Forecast | Persistence, standardized Ridge, XGBoost and LightGBM; chronological selection/calibration/test splits with horizon purging; MAE/RMSE comparisons, split conformal intervals and tree SHAP/linear contributions. |
 | Agents | AWS Strands orchestrator and intelligence, forecast, scenario, impact and strategy specialists calling evidence tools. The default deterministic local router needs no model credentials; optional Ollama/Bedrock enables language models. |
-| Twin | Pan/zoom graph, source details, city forecasts and explanations, last-48-hour replay, future horizon, wind/fire sliders and grounded chat. |
+| Twin | Pan/zoom graph, source details, city forecasts and explanations, last-48-hour replay, future horizon, weather/fire/burning scenarios, baseline comparisons and grounded chat. |
 | Alerts | Persisted severity, transport score and interval coverage thresholds, cooldown and suppression reasons; in-app events and optional email/Telegram delivery. |
 | Validation | Arrival backtest with hits, misses and false negatives, exportable forecast comparison and evidence, source limitations and government-tool comparison. |
 
@@ -38,6 +44,16 @@ Set `FIRMS_MAP_KEY` and `OPENAQ_API_KEY` in `.env`, restart, choose **Live** and
 The Data panel accepts fire, wind, station PM2.5, facility and news CSVs and downloads format templates. Timestamps require an explicit UTC offset. NASA archived fire CSVs support historical training; the history loader fetches Open-Meteo archives and OpenAQ readings for past ranges up to 90 days. There is no unverified CPCB scraper.
 
 Training requires aligned fire, wind and PM2.5 history, at least 240 usable examples and 14 days of issue times. In practice, several weeks are preferable. Use **Train real history** for live records, or the separately labeled **Run demo pipeline** to exercise the four-model workflow on synthetic records. Model selection retains persistence unless a candidate improves selection MAE by at least 5%. Held-out performance and interval coverage are reported separately. Insufficient history produces a readable error rather than invented results.
+
+### Weather and burning scenarios
+
+Open **Scenario** to change wind direction/speed, hourly rain, cloud cover and fire activity. Select an assumed burning source; the advanced controls include a smoke-emission proxy multiplier, humidity, mixing height and temperature. **Calm + burning**, **Rainy**, and **Clear + windy** are explicit what-if presets. Reset restores the original feed inputs. A selected scenario stays applied when opening Forecast, Impact and the specialist workflow; exported evidence retains all assumptions and the unchanged baseline.
+
+The forecast learns weather associations from training history. Rain is the previous-hour rainfall in millimetres, cloud cover is a percentage, and mixing height is in metres. Controls replace issue-hour features; they do not impose a full future weather schedule. Changing the smoke proxy scales the upwind FRP feature per detection without changing detected fire counts. Burning source selection adds context but does not claim fuel-specific emissions. Zero fire activity or a zero smoke proxy produces no smoke-arrival paths, while other pollution sources can remain.
+
+Use **Train demo model** or **Run demo pipeline** to explore numerical differences on deliberately synthetic weather/pollution relationships. Demo training evaluates the software only. Live scenarios need retraining with matched real weather and PM2.5 history. Older model artifacts are detected and safely fall back to persistence until retrained. A persistence forecast keeps the latest station reading; it cannot quantify a weather response. Scenario uncertainty is not calibrated, and clouds have no universal positive or negative PM2.5 effect.
+
+Variable definitions: [Open-Meteo](https://open-meteo.com/en/docs). Physical context: [EPA smoke transport and deposition](https://www.epa.gov/sciencematters/tracking-smoke-models-protect-public-health), [EPA smoke composition](https://www.epa.gov/wildfire-smoke-course/wildfire-smoke-complex-mixture). The drift paths remain independent of wet deposition and cloud chemistry.
 
 ### Agent execution
 
@@ -67,7 +83,7 @@ Load school/hospital locations from OpenStreetMap in the Impact panel or import 
 npm run verify
 ```
 
-Runs the 12 backend checks and production frontend build. Checks cover clustering, meteorological direction/calm behavior, replay, source partitioning, scenario drift, actual model training/time splits, Strands execution, alert suppression and arrival backtesting. `npm run test:backend` runs only backend checks. The build reports a large bundle warning because it contains Three.js and the original 3D opening.
+Runs backend and optional AWS integration checks and production frontend build. Checks cover clustering, meteorological direction/calm behavior, replay, source partitioning, scenario drift, actual model training/time splits, Strands execution, alert suppression and arrival backtesting. `npm run test:backend` runs only backend checks. The build reports a large bundle warning because it contains Three.js and the original 3D opening.
 
 ## Sources and design references
 
