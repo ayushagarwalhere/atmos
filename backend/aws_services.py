@@ -200,7 +200,7 @@ def status():
         'service_mode':service_mode(),'profile':os.getenv('AWS_PROFILE') or 'default','region':os.getenv('AWS_REGION','us-east-1'),
         'aws_configured':configured(),'writes_enabled':os.getenv('ATMOS_AWS_ALLOW_WRITES','false').lower()=='true',
         'local_aws_configured':bool(os.getenv('ATMOS_AWS_ENDPOINT')),'opensearch_configured':bool(os.getenv('ATMOS_OPENSEARCH_URL')),
-        'queue_enabled':os.getenv('ATMOS_ANALYSIS_QUEUE','local')=='sqs','cloud_deployed':False,
+        'queue_enabled':os.getenv('ATMOS_ANALYSIS_QUEUE','local')=='sqs','cloud_deployed':os.getenv('ATMOS_HOSTING')=='ec2',
         'services':['S3 evidence artifacts','DynamoDB run metadata','SQS analysis queue','CloudWatch application metrics'],
         'inventory': service_inventory(),
         'note':'Configured services are not marked connected until a successful connection check. Strands is an SDK, not a hosted AWS service.'}
@@ -236,7 +236,6 @@ def connection_check():
             checks[name] = {'status':'failed','error':type(exc).__name__}
     if os.getenv('ATMOS_CLOUDWATCH_ENABLED') == 'true':
         try:
-            record_metric('ConnectionCheck', 1)
             # Do not infer connectivity from the best-effort metric helper.
             client('cloudwatch').put_metric_data(Namespace='Atmos/SmokeTwin', MetricData=[{'MetricName':'ConnectionCheck','Value':1,'Unit':'Count'}])
             checks['CloudWatch'] = {'status': 'connected'}

@@ -14,6 +14,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
 COPY scripts ./scripts
+COPY infra ./infra
 COPY --from=frontend /build/dist ./dist
 ENV ATMOS_DATA_DIR=/app/data PYTHONUNBUFFERED=1
 RUN useradd --uid 10001 --create-home atmos && mkdir -p /app/data && chown atmos:atmos /app/data

@@ -1,5 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Atmos optional profile-backed AWS resources; review before deploying
+Description: Atmos private simulation evidence, analysis queue, monitoring and EC2 application role
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
 Parameters:
   EvidenceBucketName:
     Type: String
@@ -11,10 +14,19 @@ Parameters:
 Resources:
   EvidenceBucket:
     Type: AWS::S3::Bucket
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Private durable evidence independent of the hosting instance
+        must: [Block public access, Encrypt stored reports, Expire reports after 30 days]
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Ref EvidenceBucketName
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration:
+        Status: Enabled
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -29,8 +41,35 @@ Resources:
           - Id: ExpireHackathonEvidence
             Status: Enabled
             ExpirationInDays: 30
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+  EvidenceBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref EvidenceBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RequireTLS
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt EvidenceBucket.Arn
+              - !Sub '${EvidenceBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
   RunTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Small metadata index; complete report stored in S3
+        must: [Encrypted, Thirty-day TTL, Cap on-demand throughput]
     Properties:
       TableName: !Sub '${ResourcePrefix}-runs'
       BillingMode: PAY_PER_REQUEST
@@ -42,6 +81,12 @@ Resources:
           KeyType: HASH
       SSESpecification:
         SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      OnDemandThroughput:
+        MaxReadRequestUnits: 5
+        MaxWriteRequestUnits: 5
   AnalysisDeadLetterQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -58,6 +103,73 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt AnalysisDeadLetterQueue.Arn
         maxReceiveCount: 3
+  ApplicationLogs:
+    Type: AWS::Logs::LogGroup
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Bounded application log retention
+        must: [Seven-day retention]
+    Properties:
+      LogGroupName: !Sub '/atmos/${ResourcePrefix}'
+      RetentionInDays: 7
+  ApplicationRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: EC2 uses temporary credentials instead of copied user credentials
+        must: [Only this stack's data resources, No Bedrock access, No resource creation privileges]
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AtmosApplicationData
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt EvidenceBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub '${EvidenceBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DescribeTable
+                Resource: !GetAtt RunTable.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueUrl
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt AnalysisQueue.Arn
+              - Effect: Allow
+                Action: cloudwatch:PutMetricData
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    cloudwatch:namespace: Atmos/SmokeTwin
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: !GetAtt ApplicationLogs.Arn
+  ApplicationProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ApplicationRole
 Outputs:
   EvidenceBucket:
     Value: !Ref EvidenceBucket
@@ -69,3 +181,11 @@ Outputs:
     Value: !Ref AnalysisQueue
   AnalysisQueueArn:
     Value: !GetAtt AnalysisQueue.Arn
+  ApplicationProfileName:
+    Value: !Ref ApplicationProfile
+  ApplicationProfileArn:
+    Value: !GetAtt ApplicationProfile.Arn
+  ApplicationRoleArn:
+    Value: !GetAtt ApplicationRole.Arn
+  ApplicationLogGroup:
+    Value: !Ref ApplicationLogs

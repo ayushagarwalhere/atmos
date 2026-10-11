@@ -100,6 +100,7 @@ def execute(run_id):
             except Exception as exc:
                 result['aws_delivery'] = {'status':'failed','error':type(exc).__name__,'local_artifact_retained':True}
             ledger.update_run(run_id,'complete',result)
+        aws_services.record_metric('AnalysisDuration',result['duration_ms'],'Milliseconds')
         ledger.audit('analysis.complete',run_id,{'mode':mode,'duration_ms':result['duration_ms']})
         ledger.emit(run_id,'complete',{'artifact_id':artifact_id,'duration_ms':result['duration_ms']})
     except Exception as exc:

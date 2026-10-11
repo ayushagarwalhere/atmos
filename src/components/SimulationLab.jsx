@@ -11,7 +11,7 @@ const arrival = value => value == null ? 'No intersecting path' : `${value}h`;
 const stamp = value => new Date(value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const selected = run => run?.comparisons.find(row => row.city_id === run.city_id);
 const context = run => `${run.mode}|${run.city_id}|${run.horizon}|${run.at}`;
-const loadSetups = () => { try { const data = JSON.parse(localStorage.getItem('atmos-scenario-setups') || '[]'); return Array.isArray(data) ? data.slice(0, 20) : []; } catch { return []; } };
+const loadSetups = () => { try { const data = JSON.parse(localStorage.getItem('atmos-scenario-setups') || '[]'); return Array.isArray(data) ? data.filter(item => item && typeof item.name === 'string' && item.values && [6,12,24].includes(item.horizon)).slice(0, 20) : []; } catch { return []; } };
 
 function ComparisonBars({ row }) {
   const top = Math.max(1, row.baseline_pm25 || 0, row.scenario_pm25 || 0);

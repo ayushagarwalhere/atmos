@@ -7,7 +7,7 @@ from .storage import connect, utcnow
 
 def demo_response(baseline, alternative, weather, horizon):
     """An illustrative recipe, never used for live observations or calibration."""
-    if baseline.get('pm25') is None:
+    if baseline.get('pm25') is None or 'retrain' in (alternative.get('reason') or ''):
         return alternative
     observed, effective = weather['observed'], weather['effective']
     base_features = baseline.get('feature_values', {})
@@ -25,7 +25,7 @@ def demo_response(baseline, alternative, weather, horizon):
         contributions['boundary_layer_height'] = 10 * math.log(max(50, before) / max(50, after))
     gain = math.sqrt(min(24, horizon) / 6)
     value = round(min(2000, max(0, baseline['pm25'] + sum(contributions.values()) * gain)), 2)
-    return dict(alternative, pm25=value, delta_pm25=round(value - (baseline.get('baseline_pm25') or baseline['pm25']), 2),
+    return dict(alternative, pm25=value, delta_pm25=round(value - baseline.get('baseline_pm25', baseline['pm25']), 2),
                 model='demo-response', model_validated=False, interval=None, nominal_coverage=None,
                 empirical_test_coverage=None, scenario=True, interval_valid_for_scenario=False,
                 reason='Illustrative synthetic response recipe; not a calibrated air-quality forecast.',
