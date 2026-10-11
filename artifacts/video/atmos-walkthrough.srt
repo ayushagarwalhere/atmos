@@ -1,0 +1,213 @@
+1
+00:00:01,000 --> 00:00:04,292
+Smoke from crop burning and other fires can travel far
+beyond its source.
+
+2
+00:00:04,292 --> 00:00:07,585
+For cities in North India, changing wind and weather make
+it difficult to
+
+3
+00:00:07,585 --> 00:00:10,878
+understand where smoke might go, when it might arrive, and
+which places may
+
+4
+00:00:10,878 --> 00:00:14,171
+need closer attention. Atmos connects fire detections,
+weather and city air readings in
+
+5
+00:00:14,171 --> 00:00:15,184
+one inspectable research prototype.
+
+6
+00:00:17,352 --> 00:00:21,221
+The interactive map groups satellite fire detections into
+clusters, shows their fire radiative
+
+7
+00:00:21,221 --> 00:00:25,091
+power, and traces simplified hourly wind paths toward four
+cities. Select a city
+
+8
+00:00:25,091 --> 00:00:28,961
+or source, zoom the map, and replay stored history.
+Arrival times are estimates.
+
+9
+00:00:28,961 --> 00:00:32,831
+The transport score describes alignment and data coverage,
+rather than the probability that
+
+10
+00:00:32,831 --> 00:00:33,724
+smoke will arrive.
+
+11
+00:00:35,876 --> 00:00:40,048
+Each city has a latest particulate reading, a history
+chart and a forecast
+
+12
+00:00:40,048 --> 00:00:44,221
+horizon. The application compares persistence, Ridge
+regression, XGBoost and LightGBM using separate
+chronological
+
+13
+00:00:44,221 --> 00:00:48,394
+periods for training, model selection, calibration and
+testing. It shows uncertainty and feature
+
+14
+00:00:48,394 --> 00:00:52,567
+explanations. The displayed particulate sub index is
+separate from the overall official air
+
+15
+00:00:52,567 --> 00:00:53,209
+quality index.
+
+16
+00:00:55,362 --> 00:00:59,558
+In the scenario panel, change wind direction and speed,
+rainfall, cloud cover and
+
+17
+00:00:59,558 --> 00:01:03,754
+fire activity. Additional controls cover humidity,
+temperature, mixing height and a smoke emission
+
+18
+00:01:03,754 --> 00:01:07,951
+proxy. Compare the result with the unchanged baseline.
+Rain can remove airborne particles,
+
+19
+00:01:07,951 --> 00:01:12,147
+while clouds affect sunlight and mixing. Numerical
+responses are learned associations, and their
+
+20
+00:01:12,147 --> 00:01:13,761
+intervention uncertainty is not calibrated.
+
+21
+00:01:15,897 --> 00:01:20,066
+Atmos accepts your own fire, weather, station particulate,
+facility and news data. Download
+
+22
+00:01:20,066 --> 00:01:24,235
+the CSV format, upload a file or paste its contents, and
+provide the
+
+23
+00:01:24,235 --> 00:01:28,404
+source. A successful import selects live data
+automatically. Your uploaded readings and weather
+
+24
+00:01:28,404 --> 00:01:32,574
+values then feed forecasts, scenarios and specialist
+evidence. Missing inputs stay missing, and
+
+25
+00:01:32,574 --> 00:01:34,498
+invalid files show a readable error.
+
+26
+00:01:37,087 --> 00:01:41,297
+The impact view screens school, hospital and district
+locations against the estimated smoke
+
+27
+00:01:41,297 --> 00:01:45,507
+corridor. You can import an inventory or load available
+OpenStreetMap locations. Counts describe
+
+28
+00:01:45,507 --> 00:01:49,718
+potential corridor intersections, not measured exposure or
+harm. Population stays unknown unless you
+
+29
+00:01:49,718 --> 00:01:53,604
+supply a sourced value. This helps users decide which
+locations need verification.
+
+30
+00:01:55,825 --> 00:02:00,161
+Run a complete city analysis to execute five specialists
+through the AWS Strands
+
+31
+00:02:00,161 --> 00:02:04,498
+graph. Intelligence checks the inputs, Forecast reads the
+outlook, Scenario compares assumptions, Impact
+
+32
+00:02:04,498 --> 00:02:08,835
+screens places, and Strategy proposes verification steps.
+The interface shows tool events and
+
+33
+00:02:08,835 --> 00:02:13,172
+saves the result. Every returned number comes from
+computed evidence. The default provider
+
+34
+00:02:13,172 --> 00:02:14,507
+uses deterministic local rules.
+
+35
+00:02:16,725 --> 00:02:21,142
+Analyses survive a backend restart. Search the evidence
+library, export a result or
+
+36
+00:02:21,142 --> 00:02:25,560
+audit trail, and track proposed actions through accepted,
+in progress or done. Alert
+
+37
+00:02:25,560 --> 00:02:29,977
+rules check freshness, model validation, uncertainty
+coverage and cooldowns. Demo and scenario outputs
+
+38
+00:02:29,977 --> 00:02:33,715
+cannot send external alerts. Sending email or Telegram
+requires separate configuration.
+
+39
+00:02:35,815 --> 00:02:39,806
+For deployment, a single EC2 instance can serve the built
+interface and Python
+
+40
+00:02:39,806 --> 00:02:43,796
+API with persistent storage. Optional integrations use
+Bedrock for language model inference, S3
+
+41
+00:02:43,796 --> 00:02:47,786
+for evidence, DynamoDB for run metadata, and SQS for
+queued analysis. Atmos can
+
+42
+00:02:47,786 --> 00:02:51,776
+support student demonstrations and preliminary planning
+discussions. This walkthrough uses synthetic data. Real
+
+43
+00:02:51,776 --> 00:02:55,766
+forecasting quality still requires real history and
+validation, and the app does not
+
+44
+00:02:55,766 --> 00:02:58,221
+establish the pollution caused by a particular fire.

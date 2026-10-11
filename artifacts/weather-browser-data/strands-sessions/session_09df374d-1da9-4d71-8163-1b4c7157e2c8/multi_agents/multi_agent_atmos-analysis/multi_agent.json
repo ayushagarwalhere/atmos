@@ -1,0 +1,233 @@
+{
+  "type": "graph",
+  "id": "atmos-analysis",
+  "status": "completed",
+  "completed_nodes": [
+    "intelligence",
+    "strategy",
+    "scenario",
+    "forecast",
+    "impact"
+  ],
+  "failed_nodes": [],
+  "interrupted_nodes": [],
+  "node_results": {
+    "intelligence": {
+      "result": {
+        "type": "agent_result",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "text": "Tool evidence collected."
+            }
+          ],
+          "metadata": {
+            "usage": {
+              "inputTokens": 0,
+              "outputTokens": 0,
+              "totalTokens": 0
+            },
+            "metrics": {
+              "latencyMs": 0
+            }
+          },
+          "tracking_id": "5bfc1488-d0b2-4ba4-85c1-d41f1b61d741"
+        },
+        "stop_reason": "end_turn",
+        "checkpoint": null
+      },
+      "execution_time": 196,
+      "status": "completed",
+      "accumulated_usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "accumulated_metrics": {
+        "latencyMs": 0
+      },
+      "execution_count": 1,
+      "interrupts": []
+    },
+    "forecast": {
+      "result": {
+        "type": "agent_result",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "text": "Tool evidence collected."
+            }
+          ],
+          "metadata": {
+            "usage": {
+              "inputTokens": 0,
+              "outputTokens": 0,
+              "totalTokens": 0
+            },
+            "metrics": {
+              "latencyMs": 0
+            }
+          },
+          "tracking_id": "7bc1a792-2804-4a7b-8f20-9dea28c1171c"
+        },
+        "stop_reason": "end_turn",
+        "checkpoint": null
+      },
+      "execution_time": 154,
+      "status": "completed",
+      "accumulated_usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "accumulated_metrics": {
+        "latencyMs": 0
+      },
+      "execution_count": 1,
+      "interrupts": []
+    },
+    "scenario": {
+      "result": {
+        "type": "agent_result",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "text": "Tool evidence collected."
+            }
+          ],
+          "metadata": {
+            "usage": {
+              "inputTokens": 0,
+              "outputTokens": 0,
+              "totalTokens": 0
+            },
+            "metrics": {
+              "latencyMs": 0,
+              "timeToFirstByteMs": 1
+            }
+          },
+          "tracking_id": "bbecfd91-3c7e-4951-b73e-55cf2dbb7caa"
+        },
+        "stop_reason": "end_turn",
+        "checkpoint": null
+      },
+      "execution_time": 74,
+      "status": "completed",
+      "accumulated_usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "accumulated_metrics": {
+        "latencyMs": 0
+      },
+      "execution_count": 1,
+      "interrupts": []
+    },
+    "impact": {
+      "result": {
+        "type": "agent_result",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "text": "Tool evidence collected."
+            }
+          ],
+          "metadata": {
+            "usage": {
+              "inputTokens": 0,
+              "outputTokens": 0,
+              "totalTokens": 0
+            },
+            "metrics": {
+              "latencyMs": 0
+            }
+          },
+          "tracking_id": "4ed7b325-8f2b-42f7-9a55-b3d4728da608"
+        },
+        "stop_reason": "end_turn",
+        "checkpoint": null
+      },
+      "execution_time": 108,
+      "status": "completed",
+      "accumulated_usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "accumulated_metrics": {
+        "latencyMs": 0
+      },
+      "execution_count": 1,
+      "interrupts": []
+    },
+    "strategy": {
+      "result": {
+        "type": "agent_result",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "text": "Tool evidence collected."
+            }
+          ],
+          "metadata": {
+            "usage": {
+              "inputTokens": 0,
+              "outputTokens": 0,
+              "totalTokens": 0
+            },
+            "metrics": {
+              "latencyMs": 0
+            }
+          },
+          "tracking_id": "32c0dd18-e8ca-4c54-aa64-54b727a23862"
+        },
+        "stop_reason": "end_turn",
+        "checkpoint": null
+      },
+      "execution_time": 81,
+      "status": "completed",
+      "accumulated_usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "accumulated_metrics": {
+        "latencyMs": 0
+      },
+      "execution_count": 1,
+      "interrupts": []
+    }
+  },
+  "next_nodes_to_execute": [],
+  "current_task": "Analyze this city and scenario",
+  "execution_order": [
+    "intelligence",
+    "forecast",
+    "scenario",
+    "impact",
+    "strategy"
+  ],
+  "accumulated_usage": {
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0
+  },
+  "accumulated_metrics": {
+    "latencyMs": 0
+  },
+  "execution_count": 5,
+  "execution_time": 888,
+  "_internal_state": {
+    "interrupt_state": {
+      "interrupts": {},
+      "context": {},
+      "activated": false
+    }
+  }
+}

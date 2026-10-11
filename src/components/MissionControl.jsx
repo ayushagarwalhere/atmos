@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, ArrowUpRight, Check, Download, Search, Workflow, LoaderCircle } from 'lucide-react';
 import { api, downloadJSON } from '../api';
+import { persistentSessionId } from '../session';
 
 const AGENTS=['intelligence','forecast','scenario','impact','strategy'];
 const terminal=status=>['complete','failed','interrupted'].includes(status);
 const stamp=value=>new Date(value).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 
 export default function MissionControl({mode,cityId,horizon,audience,scenario,reduced}) {
-  const [sessionId]=useState(()=>{let id=localStorage.getItem('atmos-analysis-session');if(!id){id=crypto.randomUUID();localStorage.setItem('atmos-analysis-session',id)}return id});
+  const [sessionId]=useState(()=>persistentSessionId('atmos-analysis-session'));
   const [run,setRun]=useState(null),[runs,setRuns]=useState([]),[events,setEvents]=useState([]);
   const [artifacts,setArtifacts]=useState([]),[actions,setActions]=useState([]),[platform,setPlatform]=useState(null);
   const [query,setQuery]=useState(''),[matches,setMatches]=useState(null),[error,setError]=useState(''),[notice,setNotice]=useState('');

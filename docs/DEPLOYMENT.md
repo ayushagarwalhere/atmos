@@ -37,9 +37,9 @@ For a public demo URL, point your domain at the instance and put an HTTPS revers
 
 ## Active EC2 deployment and CI/CD
 
-The public demonstration is hosted at **http://13.49.222.44** on Ubuntu EC2. Nginx forwards public port 80 to the Docker service on `127.0.0.1:8000`. The site is publicly accessible without a login. HTTPS and a custom domain have not been configured.
+The public demonstration is hosted at **https://13.49.222.44** on Ubuntu EC2. Nginx redirects HTTP traffic, including the EC2 public DNS hostname, to this HTTPS address and forwards requests to the Docker service on `127.0.0.1:8000`. The site is publicly accessible without a login. It uses a trusted Let's Encrypt IP certificate; no custom domain is required.
 
-The GitHub Actions workflow in `.github/workflows/ec2.yml` builds the production image, runs backend tests and frontend unit tests, and deploys successful `main` pushes. Pull requests run CI only. `workflow_dispatch` also allows a manual build and deployment of `main`.
+The GitHub Actions workflow in `.github/workflows/ec2.yml` builds the production image, runs backend tests, frontend unit tests and desktop/mobile browser checks, and deploys successful `main` pushes. The browser checks use a public HTTP origin to catch APIs that only work on HTTPS or localhost. Pull requests run CI only. `workflow_dispatch` also allows a manual build and deployment of `main`.
 
 Configure these repository Actions secrets, then set the repository Actions variable `EC2_DEPLOY_ENABLED` to `true` to enable deployment. Until that variable is set, the workflow runs CI and skips deployment.
 
@@ -53,6 +53,8 @@ Configure these repository Actions secrets, then set the repository Actions vari
 Deployment checks out the tested commit into `/home/ubuntu/atmos/repo`. `scripts/deploy-ec2.sh` builds it, checks startup with disposable storage, and replaces the live container only after that check passes. A failed live health check restores the previous container. The persistent `atmos-data` Docker volume and server-only `/home/ubuntu/atmos/atmos.env` are reused. The deployed Git SHA is written to `/home/ubuntu/atmos/deployed-revision` and is also stored in the image label.
 
 The instance must accept SSH from the deployment runner and have Docker, Git, Nginx and passwordless sudo for the deployment user. A root-owned copy of `scripts/ci-ssh-entrypoint.sh` is installed as `/usr/local/bin/atmos-ci-deploy`. Its dedicated public key entry uses `restrict,command="/usr/local/bin/atmos-ci-deploy"` in `authorized_keys`, preventing a normal shell and port forwarding. The entrypoint only accepts a Git SHA reachable from this repository's `main` branch. The workflow pins the verified host key and does not change firewall rules, public access settings, or application provider credentials.
+
+Nginx's current configuration is in `infra/nginx-atmos.conf`. Certbot 5.4+ is required for IP webroot validation; the instance uses `/opt/atmos-certbot/bin/certbot`. The certificate is named `atmos-ip` and uses the `shortlived` profile. `certbot.timer` runs renewal with that version and reloads Nginx after successful renewal. Keep `/.well-known/acme-challenge/` publicly accessible over port 80 and keep ports 80/443 open. IP certificates last about six days, so automatic renewal is required.
 
 ## Enable the optional AWS services
 

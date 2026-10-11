@@ -13,7 +13,7 @@
     "build": "vite build --configLoader native",
     "preview": "vite preview --configLoader native --host 127.0.0.1",
     "test": "playwright test",
-    "test:unit": "node --test tests/journey-path.test.mjs"
+    "test:unit": "node --test tests/journey-path.test.mjs tests/session.test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.0",

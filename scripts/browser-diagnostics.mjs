@@ -1,0 +1,12 @@
+import { chromium } from '@playwright/test';
+import path from 'node:path';
+const browser=await chromium.launch({headless:true,executablePath:path.resolve('node_modules/playwright-core/.local-browsers/chromium-1248/chrome-win64/chrome.exe'),args:['--disable-webgl']});
+const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+page.on('pageerror',error=>console.log('Page error:',error.message));
+await page.goto('http://127.0.0.1:8001/',{waitUntil:'domcontentloaded'});
+await page.locator('#twin').waitFor({timeout:20000});
+await page.locator('.preloader').waitFor({state:'detached',timeout:25000});
+await page.getByRole('tab',{name:'Scenario',exact:true}).click();
+console.log(JSON.stringify(await page.evaluate(()=>({width:window.innerWidth,scrollWidth:document.documentElement.scrollWidth,elements:[...document.querySelectorAll('body *')].map(element=>({tag:element.tagName,cls:element.className,right:element.getBoundingClientRect().right,width:element.getBoundingClientRect().width})).filter(item=>item.right>window.innerWidth+2&&item.width>20).sort((a,b)=>b.right-a.right).slice(0,20)})),null,2));
+await page.locator('.twin-shell').screenshot({path:'artifacts/weather-mobile-diagnostic.png'});
+await browser.close();

@@ -38,6 +38,16 @@ jobs:
           docker build --target frontend --tag atmos-frontend:ci .
           docker run --rm -v "$PWD/tests:/build/tests:ro" \
             atmos-frontend:ci npm run test:unit
+      - name: Browser rendering on a public HTTP origin
+        run: |
+          docker run -d --name atmos-browser-check \
+            -e ATMOS_DISABLE_SCHEDULER=true -e ATMOS_ALLOWED_HOSTS=atmos.test \
+            -p 127.0.0.1:8000:8000 atmos:ci
+          docker run --rm --network host \
+            -v "$PWD/tests:/build/tests:ro" \
+            -v "$PWD/playwright.deployment.config.js:/build/playwright.deployment.config.js:ro" \
+            -e EXPECT_INSECURE_ORIGIN=true atmos-frontend:ci \
+            sh -c 'npx playwright install --with-deps chromium && npx playwright test --config playwright.deployment.config.js'
 
   deploy:
     name: Deploy the tested commit
@@ -69,10 +79,10 @@ jobs:
       - name: Confirm public access
         run: |
           curl --retry 6 --retry-all-errors --retry-delay 3 --max-time 30 \
-            --fail --silent --show-error "http://$EC2_HOST/" -o /dev/null
+            --fail --silent --show-error "https://$EC2_HOST/" -o /dev/null
           curl --retry 6 --retry-all-errors --retry-delay 3 --max-time 30 \
-            --fail --silent --show-error "http://$EC2_HOST/api/health" -o /dev/null
-          echo "Deployment is publicly available at http://$EC2_HOST"
+            --fail --silent --show-error "https://$EC2_HOST/api/health" -o /dev/null
+          echo "Deployment is publicly available at https://$EC2_HOST"
       - name: Remove the temporary SSH key
         if: always()
         run: rm -rf "$RUNNER_TEMP/atmos-ssh"
