@@ -3,11 +3,13 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Cloud, Clouds } from '@react-three/drei/core/Cloud.js';
 import { Text } from '@react-three/drei/core/Text.js';
 import { useGLTF } from '@react-three/drei/core/Gltf.js';
-import { ArrowDown, ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUpRight, Building2, Flame, Wind } from 'lucide-react';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { useThemeStore } from '../stores/themeStore';
 import StarsContainer from './theme/Stars';
+import WindowTypography from './WindowTypography';
+import SmokeTransportScene from './SmokeTransportScene';
 import { clamp01, range, smoothRange, sampleJourney, journeyPhase } from './journeyPath';
 
 const FONT = '/fonts/jizBRFtNs2ka5fXjeivQ4LroWlx-2zI.ttf';
@@ -53,33 +55,24 @@ function ScrollCamera({signal,frameRequest,reduced,viewport,modelReady}) {
       viewport.current.dataset.cameraPitch=path.pitch.toFixed(3);
     }
   },-1);
-  return <group ref={twin} visible={false} position={[size.width<760?0:2.35,size.width<760?-33.1:-31.35,0]}>
-    <pointLight position={[0,0,1]} color="#ffb36b" intensity={2.2} distance={8}/>
-    <mesh><sphereGeometry args={[0.48,32,32]}/><meshStandardMaterial color="#e78443" emissive="#913a1e" emissiveIntensity={1.2}/></mesh>
-    <mesh rotation={[Math.PI/2,0,0]} scale={[1.6,1.6,1]}><torusGeometry args={[0.8,0.014,8,80]}/><meshBasicMaterial color="#fff1d5" transparent opacity={0.7}/></mesh>
-    {[[1.35,.5,0],[-1.15,.35,0],[.2,-1.25,0]].map((point,index)=><group key={index} position={point}><mesh><sphereGeometry args={[0.2,20,20]}/><meshStandardMaterial color="#d9edf1" emissive="#7aa6b0" emissiveIntensity={0.5}/></mesh></group>)}
-    <mesh position={[.62,.25,0]}><cylinderGeometry args={[0.012,0.012,1.28,8]}/><meshBasicMaterial color="#c4d8e5" transparent opacity={0.7}/></mesh>
-    <mesh position={[-.48,-.28,0]} rotation={[0,0,-.4]}><cylinderGeometry args={[0.012,0.012,1.2,8]}/><meshBasicMaterial color="#c4d8e5" transparent opacity={0.7}/></mesh>
+  return <group ref={twin} visible={false} position={[size.width<760?0:4.1,size.width<760?-33.1:-31.8,0]} scale={size.width<760?1.1:1.25}>
+    <pointLight position={[-1.5,0,1]} color="#ffb36b" intensity={2.2} distance={8}/>
+    <SmokeTransportScene reduced={reduced}/>
   </group>;
 }
 
 function JourneyClouds({reduced}) {
-  // Match the reference's seeded, slowly expanding cloud banks and depth distribution.
+  // Upstream Cloud.tsx: full-opacity billboard banks, including its near-camera fades.
   const banks=[
     {seed:1,position:[-1,0,0],bounds:[10,10,10],scale:1.9,volume:2,growth:3,fade:5,speed:0.2,concentrate:'inside'},
     {seed:3,position:[2,0,2],bounds:[10,10,10],scale:1,volume:2,growth:2,fade:3,speed:0.1,concentrate:'outside'},
-    {seed:4,position:[-10,-10,4],bounds:[10,20,15],scale:2,volume:3,growth:4,fade:8,speed:0.2,concentrate:'outside'},
-    {seed:5,position:[6,-3,8],bounds:[5,5,5],scale:2,volume:2,growth:2,fade:4,speed:0.1,concentrate:'outside'},
-    {seed:6,position:[0,-20,20],bounds:[5,5,5],scale:4,volume:3,growth:2,fade:4,speed:0.1,concentrate:'outside'},
-    {seed:7,position:[10,-15,-5],bounds:[5,5,5],scale:3,volume:3,growth:2,fade:4,speed:0.1,concentrate:'outside'},
+    {seed:4,position:[-10,-10,4],bounds:[10,20,15],scale:2,volume:3,growth:4,fade:10,speed:0.2,concentrate:'outside'},
+    {seed:5,position:[6,-3,8],bounds:[5,5,5],scale:2,volume:2,growth:2,fade:0.1,speed:0.1,concentrate:'outside'},
+    {seed:6,position:[0,-20,20],bounds:[5,5,5],scale:4,volume:3,growth:2,fade:0.1,speed:0.1,concentrate:'outside'},
+    {seed:7,position:[10,-15,-5],bounds:[5,5,5],scale:3,volume:3,growth:2,fade:0.1,speed:0.1,concentrate:'outside'},
   ];
   return <Clouds material={THREE.MeshBasicMaterial} texture="/textures/cloud.png" position={[0,-5,0]} limit={60} frustumCulled={false}>
-    {banks.map(bank=><Cloud key={bank.seed} {...bank} segments={1} smallestVolume={2} speed={reduced?0:bank.speed} color="#e8ecef"/>) }
-    <Cloud seed={21} position={[-6,-8,5]} bounds={[2,2,3]} segments={4} volume={3.1} growth={1.8} opacity={0.85} fade={5} speed={reduced?0:0.09}/>
-    <Cloud seed={22} position={[6,-13,4]} bounds={[2,2,3]} segments={4} volume={3} growth={1.8} opacity={0.85} fade={5} speed={reduced?0:0.1}/>
-    <Cloud seed={23} position={[-7,-20,3]} bounds={[2,2,3]} segments={4} volume={3.6} growth={1.2} opacity={0.8} fade={4} speed={reduced?0:0.07}/>
-    <Cloud seed={24} position={[7,-22,5]} bounds={[2,2,3]} segments={4} volume={3.5} growth={1.2} opacity={0.8} fade={4} speed={reduced?0:0.09}/>
-    <Cloud seed={25} position={[-6,-28,-4]} bounds={[2,1,2]} segments={3} volume={3} growth={1} opacity={0.35} fade={5} speed={reduced?0:0.07}/>
+    {banks.map(bank=><Cloud key={bank.seed} {...bank} segments={1} smallestVolume={2} speed={reduced?0:bank.speed} color="#ffffff"/>) }
   </Clouds>;
 }
 
@@ -107,12 +100,13 @@ function FloatingWindow({signal,reduced,onReady}) {
         <mesh ref={handle} geometry={nodes['#WIN0003_Handle_#WIN0003_Textures_0'].geometry} material={material} position={[-0.84,-0.018,0.55]}/>
       </group>
     </group>
+    <WindowTypography signal={signal} reduced={reduced}/>
   </group>;
 }
 
 function SkyTitle() {
   const {size}=useThree();
-  const fontSize=size.width<760?0.54:1.1;
+  const fontSize=size.width<760?1.12:2.3;
   return <group position={[0,2,-10]}>
     <Text font={FONT} fontSize={fontSize} color="#ffffff" anchorX="center" anchorY="middle" position={[0,0.6,0]} characters="Smoke travels.">Smoke travels.</Text>
     <Text font={ITALIC_FONT} fontSize={fontSize} color="#ffffff" anchorX="center" anchorY="middle" position={[0,-0.7,0]} characters="Know what arrives.">Know what arrives.</Text>
@@ -136,8 +130,20 @@ function Scene({signal,frameRequest,reduced,viewport,onReady}) {
 function FlatJourney({signal}) {
   return <div className="flat-journey" aria-hidden="true">
     <div className="flat-cloud flat-cloud-one"/><div className="flat-cloud flat-cloud-two"/><div className="flat-cloud flat-cloud-three"/>
-    <div className="flat-window"><div className="flat-sash"><span/></div></div>
-    <div className="flat-pod"><div className="fallback-twin"><i/><i/><i/><i/></div></div>
+    <div className="flat-window">
+      <div className="flat-window-labels">
+        <span className="flat-window-label-top">SMOKE TRAVELS</span>
+        <span className="flat-window-label-bottom">KNOW WHAT ARRIVES</span>
+        <span className="flat-window-label-left">FIRE SIGNALS · WIND TRANSPORT</span>
+        <span className="flat-window-label-right">CITY OUTLOOKS · CLEARER SKIES</span>
+      </div>
+      <div className="flat-sash"><span/></div>
+    </div>
+    <div className="flat-pod"><div className="fallback-smoke-scene">
+      <div><Flame/><span>Upwind fires</span></div>
+      <div><Wind/><ArrowRight/><span>Wind transport</span></div>
+      <div><Building2/><span>Downwind city</span></div>
+    </div></div>
   </div>;
 }
 
@@ -163,6 +169,7 @@ export default function OpeningJourney({reduced,onReady}) {
       stage.style.setProperty('--window-opacity',smoothRange(p,0.4,0.08)*(1-smoothRange(p,0.64,0.04)));
       stage.style.setProperty('--window-scale',0.5+range(p,0.42,0.21)*6);
       stage.style.setProperty('--sash-angle',range(p,0.5,0.1)*95+'deg');
+      stage.style.setProperty('--window-text-angle',-range(p,0.65,0.15)*90+'deg');
       stage.style.setProperty('--entry-opacity',1-smoothRange(p,0.05,0.15));
       stage.style.setProperty('--pod-opacity',smoothRange(p,0.8,0.06));
       stage.style.setProperty('--pod-offset',(1-smoothRange(p,0.8,0.06))*30+'px');
@@ -192,7 +199,7 @@ export default function OpeningJourney({reduced,onReady}) {
     <div ref={viewport} className={'opening-viewport '+(!available?'no-webgl':'')} data-phase={phase} data-theme={themeType}>
       <div ref={backgroundRef} className="journey-canvas" role="img" aria-label="Scroll through the atmosphere from fire signals toward downwind cities">
         <JourneyBoundary fallback={fallback} onReady={onReady}>
-          {available?<Canvas dpr={[1,1.5]} camera={{position:[0,0,5],fov:40,near:0.01,far:1000}} gl={{alpha:true,antialias:true}} frameloop={reduced||!visible?'demand':'always'}><Suspense fallback={null}><Scene signal={signal} frameRequest={frameRequest} reduced={reduced} viewport={viewport} onReady={onReady}/></Suspense></Canvas>:fallback}
+          {available?<Canvas dpr={[1,2]} camera={{position:[0,0,5],fov:75,near:0.01,far:1000}} gl={{alpha:true,antialias:true}} frameloop={reduced||!visible?'demand':'always'}><Suspense fallback={null}><Scene signal={signal} frameRequest={frameRequest} reduced={reduced} viewport={viewport} onReady={onReady}/></Suspense></Canvas>:fallback}
         </JourneyBoundary>
       </div>
       <div className="journey-entry">

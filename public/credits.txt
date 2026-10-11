@@ -12,5 +12,10 @@ https://github.com/pmndrs/drei-assets
 Camera/cloud choreography reference: Mohit Virli
 https://github.com/mohitvirli/mohitvirli.github.io
 
+Window typography, cloud banks and star field adapted from the same repository,
+commit edc716e10c120f5e19aa8358be433222a83d453e.
+Original source is preserved in vendor/mohitvirli/reference.
+Window lettering uses the repository's public/soria-font.ttf (Soria).
+
 Fonts: DM Sans and Instrument Serif, SIL Open Font License.
 License files are in /fonts/.

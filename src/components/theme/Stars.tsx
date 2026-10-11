@@ -8,6 +8,7 @@ const StarsContainer = ({ reduced = false }) => {
   if (!isDarkTheme) return null;
 
   return (
+    // Original Clevir star field: additive Drei points with fading edges and twinkling.
     <Stars radius={200} depth={100} count={5000} factor={10} saturation={10} fade={true} speed={reduced ? 0 : 1} />
   );
 };

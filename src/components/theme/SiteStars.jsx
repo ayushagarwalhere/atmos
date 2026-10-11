@@ -20,7 +20,7 @@ export default function SiteStars({ reduced }) {
   if (!dark) return null;
   return <div className="site-stars" aria-hidden="true">
     <StarsBoundary>
-      <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0, 5], fov: 40, far: 1000 }}
+      <Canvas dpr={[1, 2]} camera={{ position: [0, 0, 5], fov: 75, far: 1000 }}
         gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }}
         frameloop={reduced || !visible ? 'demand' : 'always'}>
         <Suspense fallback={null}><StarsContainer reduced={reduced} /></Suspense>
