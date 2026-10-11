@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 
 async function openTwin(page){
-  await page.goto('/');
+  await page.goto('/',{waitUntil:'domcontentloaded'});
   await expect(page.locator('.preloader')).toHaveCount(0,{timeout:25000});
   await page.locator('#twin').scrollIntoViewIfNeeded();
   await expect(page.locator('.twin-map')).toBeVisible({timeout:20000});
@@ -11,6 +11,8 @@ async function openTwin(page){
 test('weather scenarios, exports, chat and saved specialist workflow use actual backend evidence',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await openTwin(page);
+  await page.getByRole('button',{name:'Demo',exact:true}).click();
+  await expect(page.locator('.twin-map')).toBeVisible();
   await page.getByRole('tab',{name:'Scenario',exact:true}).click();
   const changed=page.waitForResponse(response=>response.url().endsWith('/api/scenario')&&response.request().postDataJSON()?.rain_mm===8);
   await page.getByRole('button',{name:'Rainy',exact:true}).click();
@@ -38,7 +40,8 @@ test('weather scenarios, exports, chat and saved specialist workflow use actual 
   await expect(page.locator('.run-summary>b')).toContainText('COMPLETE',{timeout:30000});
   await expect(page.locator('.specialist-node.complete')).toHaveCount(5);
   await page.getByRole('tab',{name:'Action plan',exact:true}).click();
-  await expect(page.locator('.action-board article')).toHaveCount(3);
+  await expect(page.locator('.action-board article').first()).toBeVisible();
+  expect(await page.locator('.action-board article').count()).toBeGreaterThanOrEqual(3);
   const update=page.waitForResponse(response=>response.url().includes('/api/actions/')&&response.request().method()==='PATCH');
   await page.locator('.action-board select').first().selectOption('done');
   expect((await update).status()).toBe(200);

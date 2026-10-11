@@ -70,6 +70,7 @@ async def lifespan(app):
     async def scheduler():
         while True:
             if os.getenv('ATMOS_DISABLE_SCHEDULER','false').lower()!='true':
+                await asyncio.to_thread(seed_demo)
                 await asyncio.to_thread(refresh_job)
             await asyncio.sleep(max(15,int(os.getenv('ATMOS_REFRESH_MINUTES','60')))*60)
     task = asyncio.create_task(scheduler())
@@ -85,8 +86,9 @@ app = FastAPI(title='Atmos smoke twin',version='1.0.0',lifespan=lifespan)
 @app.middleware('http')
 async def local_origin_guard(request:Request,call_next):
     origin = request.headers.get('origin')
-    if request.method not in ('GET','HEAD','OPTIONS') and origin and urlparse(origin).hostname not in ('localhost','127.0.0.1'):
-        return JSONResponse({'detail':'Use the local app origin for mutations'},status_code=403)
+    allowed_hosts = {'localhost','127.0.0.1'} | {host.strip().lower() for host in os.getenv('ATMOS_ALLOWED_HOSTS','').split(',') if host.strip()}
+    if request.method not in ('GET','HEAD','OPTIONS') and origin and urlparse(origin).hostname not in allowed_hosts:
+        return JSONResponse({'detail':'Use an allowed app origin for mutations'},status_code=403)
     token = os.getenv('ATMOS_API_TOKEN')
     if token and request.url.path.startswith('/api/') and request.headers.get('authorization')!=f'Bearer {token}':
         return JSONResponse({'detail':'Backend API token required'},status_code=401)

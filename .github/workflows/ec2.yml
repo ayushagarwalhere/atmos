@@ -1,0 +1,78 @@
+name: Build, test, and deploy to EC2
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atmos-ec2-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: Production build and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build the production container
+        run: docker build --tag atmos:ci .
+      - name: Backend tests
+        run: |
+          docker run --rm --entrypoint python \
+            -v "$PWD/infra:/app/infra:ro" \
+            -e ATMOS_DISABLE_SCHEDULER=true \
+            -e ATMOS_AGENT_PROVIDER=local_rules \
+            -e ATMOS_AWS_MODE=disabled \
+            atmos:ci -m pytest backend/tests -q -p no:cacheprovider
+      - name: Frontend unit tests
+        run: |
+          docker build --target frontend --tag atmos-frontend:ci .
+          docker run --rm -v "$PWD/tests:/build/tests:ro" \
+            atmos-frontend:ci npm run test:unit
+
+  deploy:
+    name: Deploy the tested commit
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.EC2_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+    steps:
+      - name: Configure SSH
+        run: |
+          test -n "$EC2_HOST" && test -n "$EC2_USER"
+          test -n "$EC2_SSH_KEY" && test -n "$EC2_KNOWN_HOSTS"
+          umask 077
+          mkdir -p "$RUNNER_TEMP/atmos-ssh"
+          printf '%s\n' "$EC2_SSH_KEY" > "$RUNNER_TEMP/atmos-ssh/key"
+          printf '%s\n' "$EC2_KNOWN_HOSTS" > "$RUNNER_TEMP/atmos-ssh/known_hosts"
+      - name: Update the EC2 repository and deploy
+        run: |
+          ssh -i "$RUNNER_TEMP/atmos-ssh/key" \
+            -o BatchMode=yes -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/atmos-ssh/known_hosts" \
+            "$EC2_USER@$EC2_HOST" "$GITHUB_SHA"
+      - name: Confirm public access
+        run: |
+          curl --retry 6 --retry-all-errors --retry-delay 3 --max-time 30 \
+            --fail --silent --show-error "http://$EC2_HOST/" -o /dev/null
+          curl --retry 6 --retry-all-errors --retry-delay 3 --max-time 30 \
+            --fail --silent --show-error "http://$EC2_HOST/api/health" -o /dev/null
+          echo "Deployment is publicly available at http://$EC2_HOST"
+      - name: Remove the temporary SSH key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/atmos-ssh"

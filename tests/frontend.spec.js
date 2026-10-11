@@ -20,7 +20,7 @@ test('capture desktop and mobile renders',async ({page})=>{
  await expect(page.locator('.opening-viewport')).toHaveAttribute('data-camera-pitch','0.000');
  await page.screenshot({path:'artifacts/journey-04-pod.png'});
  await goTo(.56,'window');expect(Number(await page.locator('.opening-viewport').getAttribute('data-camera-y'))).toBeGreaterThan(-25);
- await page.locator('#twin').scrollIntoViewIfNeeded();await page.waitForTimeout(400);await page.screenshot({path:'artifacts/desktop-demo.png'});
+ await page.evaluate(()=>window.scrollTo({top:document.querySelector('#twin').getBoundingClientRect().top+window.scrollY,behavior:'instant'}));await page.waitForTimeout(400);await page.screenshot({path:'artifacts/desktop-demo.png',animations:'disabled'});
  await page.setViewportSize({width:390,height:844});await page.goto('/');await expect(page.locator('.preloader')).toHaveCount(0,{timeout:25000});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  await page.waitForTimeout(500);await page.screenshot({path:'artifacts/mobile-journey-sky.png'});

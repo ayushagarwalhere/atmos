@@ -79,6 +79,8 @@ Load school/hospital locations from OpenStreetMap in the Impact panel or import 
 
 ## Checks
 
+For AWS hosting, see [deployment instructions](docs/DEPLOYMENT.md). The supplied Dockerfile serves the built UI and API together; persist `/app/data`. The AWS integration template provisions evidence resources, not hosting.
+
 ```powershell
 npm run verify
 ```

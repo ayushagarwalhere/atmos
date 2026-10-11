@@ -9,5 +9,6 @@
 .twin-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}.twin-panel{min-width:0}.twin-shell select,.twin-shell input,.twin-shell button{max-width:100%}.scenario-lab .underlined-link{margin-top:12px;font-size:11px}.weather-strip svg{opacity:.7}
 .twin-panel:has(.scenario-lab){max-height:900px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#c76d4070 transparent}.scenario-lab .weather-slider label{font-size:11px}.scenario-lab .weather-slider small{font-size:9px}.scenario-lab .weather-explanation small{font-size:10px}.scenario-lab .scenario-note{font-size:11px;line-height:1.6}
 .csv-preview{display:flex;flex-direction:column;gap:8px;margin:15px 0}.csv-preview textarea{width:100%;resize:vertical;min-height:110px;padding:12px;border:1px solid var(--border);border-radius:5px;background:transparent;color:var(--navy);font:11px/1.6 monospace}
+.field-row{grid-template-columns:repeat(2,minmax(0,1fr))}.field-row label{min-width:0}.field-row input,.field-row select{width:100%}
 @media(max-width:900px){.twin-panel:has(.scenario-lab){max-height:none;overflow:visible}}
 @media(max-width:600px){.scenario-presets button{padding:8px 10px}.weather-slider input{height:7px}.scenario-lab{padding-top:16px}.twin-map-heading{gap:10px}.wind-badge{font-size:10px;padding:7px 9px}.weather-slider{margin:20px 0}}

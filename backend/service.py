@@ -99,7 +99,18 @@ def advisory(city, audience, mode):
     return prefix+f"{city['name']}: {forecast['model']} estimates PM2.5 {forecast['pm25']} µg/m³ in {forecast['horizon']} hours. {uncertainty} "+tasks[audience]+' This screening estimate does not establish how much pollution comes from crop fires.'
 
 def import_csv(kind, text, mode='live', source='User CSV import'):
-    rows = list(csv.DictReader(io.StringIO(text)))
+    reader = csv.DictReader(io.StringIO(text.lstrip('\ufeff')))
+    rows = list(reader)
+    fields = set(reader.fieldnames or [])
+    required = {'wind': {'city_id','time','speed_kmh','direction_deg'}, 'aqi': {'city_id','time','station_id','pm25'},
+        'facilities': {'city_id','time','name','kind','lat','lon'}, 'news': {'city_id','time','title','url'}}
+    missing = required.get(kind,set()) - fields
+    if missing:
+        raise ValueError('CSV is missing required columns: '+', '.join(sorted(missing)))
+    if kind == 'fires' and (not fields.intersection({'lat','latitude'}) or not fields.intersection({'lon','longitude'}) or not ('time' in fields or {'acq_date','acq_time'} <= fields)):
+        raise ValueError('Fire CSV requires latitude/longitude and time, or NASA acq_date/acq_time columns')
+    if any(None in row or any(value is None for value in row.values()) for row in rows):
+        raise ValueError('CSV rows must have the same number of columns as the header')
     if not rows or len(rows)>100000:
         raise ValueError('CSV must contain 1–100,000 rows')
     if kind=='fires':
@@ -144,6 +155,8 @@ def import_csv(kind, text, mode='live', source='User CSV import'):
                     raise ValueError('News links must use HTTPS')
                 base.update(title=row['title'][:500],url=url)
             normalized.append(base)
+            if 'lat' in base and (not math.isfinite(base['lat']) or not math.isfinite(base['lon']) or not -90 <= base['lat'] <= 90 or not -180 <= base['lon'] <= 180):
+                raise ValueError('Coordinates must be finite latitude/longitude values')
     put(kind,normalized,mode)
     if kind=='aqi':
         stations = {r['station_id']: {'id':r['station_id'],'city_id':r['city_id'],'name':r['station_id'],'lat':r['lat'],'lon':r['lon'], 'time':utcnow(),'source':source} for r in normalized}
